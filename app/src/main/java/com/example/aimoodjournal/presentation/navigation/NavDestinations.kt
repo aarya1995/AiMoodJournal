@@ -2,7 +2,7 @@ package com.example.aimoodjournal.presentation.navigation
 
 sealed class NavDestinations(val route: String) {
     // Main Flow
-    data object Home : NavDestinations("home")
+    data object JournalHome : NavDestinations("journal_home")
     data object JournalHistory : NavDestinations("journal_history")
     
     // NUX Flow
@@ -13,6 +13,6 @@ sealed class NavDestinations(val route: String) {
     data object Setup : NavDestinations("setup")
     
     companion object {
-        val startDestination = Home.route
+        val startDestination = JournalHome.route
     }
 } 

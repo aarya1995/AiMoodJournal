@@ -26,7 +26,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.aimoodjournal.data.datastore.UserPreferences
 import com.example.aimoodjournal.presentation.navigation.NavDestinations
 import com.example.aimoodjournal.presentation.ui.theme.AiMoodJournalTheme
-import com.example.aimoodjournal.presentation.ui.journal_home.HomeScreen
+import com.example.aimoodjournal.presentation.ui.journal_home.JournalHomeScreen
 import com.example.aimoodjournal.presentation.ui.journal_history.JournalHistoryScreen
 import com.example.aimoodjournal.presentation.ui.nux.disclaimer.DisclaimerScreen
 import com.example.aimoodjournal.presentation.ui.nux.biometrics.UserBiometricsScreen
@@ -79,14 +79,14 @@ fun AppNavigation(
         modifier = modifier
     ) {
         // Main Flow
-        composable(NavDestinations.Home.route) {
+        composable(NavDestinations.JournalHome.route) {
             LaunchedEffect(hasCompletedNux) {
                 // Only handle navigation on initial load and when we have a definitive NUX state
                 if (isInitialLoad && hasCompletedNux != null) {
                     isInitialLoad = false
                     if (!hasCompletedNux!!) {
                         navController.navigate(NavDestinations.Welcome.route) {
-                            popUpTo(NavDestinations.Home.route) { inclusive = true }
+                            popUpTo(NavDestinations.JournalHome.route) { inclusive = true }
                         }
                     }
                 }
@@ -99,7 +99,7 @@ fun AppNavigation(
                     LoadingDots(modifier = Modifier.align(Alignment.Center))
                 }
             } else if (hasCompletedNux == true) {
-                HomeScreen(
+                JournalHomeScreen(
                     onNavigateToHistory = {
                         navController.navigate(NavDestinations.JournalHistory.route)
                     }
@@ -177,7 +177,7 @@ fun AppNavigation(
         ) {
             SetupScreen(
                 onNext = {
-                    navController.navigate(NavDestinations.Home.route) {
+                    navController.navigate(NavDestinations.JournalHome.route) {
                         popUpTo(NavDestinations.Welcome.route) { inclusive = true }
                         launchSingleTop = true
                     }
