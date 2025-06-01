@@ -1,0 +1,18 @@
+package com.example.aimoodjournal.presentation.navigation
+
+sealed class NavDestinations(val route: String) {
+    // Main Flow
+    data object Home : NavDestinations("home")
+    data object JournalHistory : NavDestinations("journal_history")
+    
+    // NUX Flow
+    data object Welcome : NavDestinations("welcome")
+    data object UserDetails : NavDestinations("user_details")
+    data object UserBiometrics : NavDestinations("user_biometrics")
+    data object Disclaimer : NavDestinations("disclaimer")
+    data object Setup : NavDestinations("setup")
+    
+    companion object {
+        val startDestination = Home.route
+    }
+} 
