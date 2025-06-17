@@ -76,6 +76,8 @@ dependencies {
 
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.32.0")
 
+    implementation("com.google.mediapipe:tasks-genai:0.10.24")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

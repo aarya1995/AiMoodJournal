@@ -20,10 +20,14 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     override fun getUserName(): Flow<String?> {
-        return userPreferences.userName
+        return userPreferences.getUserName()
     }
 
     override suspend fun completeNux() {
         userPreferences.completeNux()
+    }
+
+    override fun isNuxCompleted(): Flow<Boolean> {
+        return userPreferences.isNuxCompleted()
     }
 } 

@@ -1,4 +1,4 @@
-package com.example.aimoodjournal.presentation
+package com.example.aimoodjournal.presentation.ui.entrypoint
 
 import android.os.Build
 import android.os.Bundle
@@ -19,11 +19,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.aimoodjournal.data.datastore.UserPreferences
 import com.example.aimoodjournal.presentation.navigation.NavDestinations
 import com.example.aimoodjournal.presentation.ui.theme.AiMoodJournalTheme
 import com.example.aimoodjournal.presentation.ui.journal_home.JournalHomeScreen
@@ -39,13 +39,9 @@ import com.example.aimoodjournal.presentation.ui.shared.nuxExitTransition
 import com.example.aimoodjournal.presentation.ui.shared.nuxPopEnterTransition
 import com.example.aimoodjournal.presentation.ui.shared.nuxPopExitTransition
 import dagger.hilt.android.AndroidEntryPoint
-import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
-    @Inject
-    lateinit var userPreferences: UserPreferences
-
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -54,8 +50,7 @@ class MainActivity : ComponentActivity() {
             AiMoodJournalTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     AppNavigation(
-                        modifier = Modifier.padding(innerPadding),
-                        userPreferences = userPreferences
+                        modifier = Modifier.padding(innerPadding)
                     )
                 }
             }
@@ -67,11 +62,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun AppNavigation(
     modifier: Modifier = Modifier,
-    userPreferences: UserPreferences,
-    navController: NavHostController = rememberNavController()
+    navController: NavHostController = rememberNavController(),
+    viewModel: MainViewModel = hiltViewModel()
 ) {
     var isInitialLoad by remember { mutableStateOf(true) }
-    val hasCompletedNux by userPreferences.isNuxCompleted.collectAsState(initial = null)
+    val state by viewModel.state.collectAsState()
 
     NavHost(
         navController = navController,
@@ -80,11 +75,11 @@ fun AppNavigation(
     ) {
         // Main Flow
         composable(NavDestinations.JournalHome.route) {
-            LaunchedEffect(hasCompletedNux) {
+            LaunchedEffect(state.hasCompletedNux) {
                 // Only handle navigation on initial load and when we have a definitive NUX state
-                if (isInitialLoad && hasCompletedNux != null) {
+                if (isInitialLoad && state.hasCompletedNux != null) {
                     isInitialLoad = false
-                    if (!hasCompletedNux!!) {
+                    if (!state.hasCompletedNux!!) {
                         navController.navigate(NavDestinations.Welcome.route) {
                             popUpTo(NavDestinations.JournalHome.route) { inclusive = true }
                         }
@@ -93,12 +88,11 @@ fun AppNavigation(
             }
 
             // Show loading or home screen based on state
-            if (hasCompletedNux == null) {
-                // You might want to show a loading screen here
+            if (state.isLoading) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     LoadingDots(modifier = Modifier.align(Alignment.Center))
                 }
-            } else if (hasCompletedNux == true) {
+            } else if (state.hasCompletedNux == true) {
                 JournalHomeScreen(
                     onNavigateToHistory = {
                         navController.navigate(NavDestinations.JournalHistory.route)
