@@ -27,26 +27,30 @@ class UserPreferences @Inject constructor(
     private val userGenderKey = stringPreferencesKey(USER_GENDER)
     private val userDobKey = stringPreferencesKey(USER_DOB)
 
-    val isNuxCompleted: Flow<Boolean> = context.dataStore.data
-        .map { preferences ->
-            preferences[hasCompletedNuxKey] ?: false
-        }
-
-    val userName: Flow<String?> = context.dataStore.data
-        .map { preferences ->
-            preferences[userNameKey]
-        }
-
     suspend fun completeNux() {
         context.dataStore.edit { preferences ->
             preferences[hasCompletedNuxKey] = true
         }
     }
 
+    fun isNuxCompleted(): Flow<Boolean> {
+        return context.dataStore.data
+            .map { preferences ->
+                preferences[hasCompletedNuxKey] ?: false
+            }
+    }
+
     suspend fun saveUserName(name: String) {
         context.dataStore.edit { preferences ->
             preferences[userNameKey] = name
         }
+    }
+
+    fun getUserName(): Flow<String?> {
+        return context.dataStore.data
+            .map { preferences ->
+                preferences[userNameKey]
+            }
     }
 
     suspend fun saveUserGender(gender: String) {

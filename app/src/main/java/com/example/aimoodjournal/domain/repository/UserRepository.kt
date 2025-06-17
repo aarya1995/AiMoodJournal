@@ -8,4 +8,5 @@ interface UserRepository {
     suspend fun saveUserBiometrics(biometrics: UserBiometrics)
     fun getUserName(): Flow<String?>
     suspend fun completeNux()
+    fun isNuxCompleted(): Flow<Boolean>
 } 

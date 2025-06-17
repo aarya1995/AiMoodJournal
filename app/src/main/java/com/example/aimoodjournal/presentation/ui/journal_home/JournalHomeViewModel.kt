@@ -43,24 +43,6 @@ class JournalHomeViewModel @Inject constructor(
                 val modelDir = File(context.filesDir, "models")
                 val modelFile = File(modelDir, "gemma-3n-E4B-it-int4.task")
                 val isInstalled = modelFile.exists() && modelFile.length() > 0
-
-                if (isInstalled) {
-                    // Set the configuration options for the LLM Inference task
-                    val taskOptions = LlmInference.LlmInferenceOptions.builder()
-                        .setModelPath(File(context.filesDir, "models/gemma-3n-E4B-it-int4.task").absolutePath)
-                        .setMaxTopK(64)
-                        .build()
-
-                    // Create an instance of the LLM Inference task
-                    val llmInference = LlmInference.createFromOptions(context, taskOptions)
-//                    val result = llmInference.generateResponse("hello how are you?")
-//                    _state.update {
-//                        it.copy(
-//                            output = result,
-//                            isLoading = false
-//                        )
-//                    }
-                }
                 
                 _state.update { 
                     it.copy(
