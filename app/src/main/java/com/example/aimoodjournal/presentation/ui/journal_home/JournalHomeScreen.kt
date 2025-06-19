@@ -43,6 +43,7 @@ import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import androidx.compose.ui.platform.LocalView
 
 private const val JOURNAL_TEXT_PREVIEW_LENGTH = 150
+private const val MIN_JOURNAL_TEXT_LENGTH = 40
 
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
@@ -399,6 +400,7 @@ fun JournalEntryPage(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AIReportSection(
@@ -699,6 +701,22 @@ fun JournalEntrySection(
             maxLines = 10
         )
 
+        // Character count and minimum requirement messaging
+        val currentLength = state.currentJournalText.length
+        val isMinLengthMet = currentLength >= MIN_JOURNAL_TEXT_LENGTH
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "$currentLength / $MIN_JOURNAL_TEXT_LENGTH characters",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isMinLengthMet) Color.White.copy(alpha = 0.7f) else Color(0xFF926247),
+            )
+        }
+
         // Spacer to push the button to the bottom
         Spacer(modifier = Modifier.weight(1f))
 
@@ -709,7 +727,9 @@ fun JournalEntrySection(
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF926247)
             ),
-            enabled = state.currentJournalText.trim().isNotEmpty() && !state.isSaving
+            enabled = state.currentJournalText.trim().isNotEmpty() && 
+                     state.currentJournalText.length >= MIN_JOURNAL_TEXT_LENGTH && 
+                     !state.isSaving
         ) {
             if (state.isSaving) {
                 CircularProgressIndicator(
