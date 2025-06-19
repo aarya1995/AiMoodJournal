@@ -50,6 +50,7 @@ fun JournalHomeScreen(
     viewModel: JournalHomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val systemUiController = rememberSystemUiController()
     val pagerState = rememberPagerState(
         initialPage = JournalHomeViewModel.INITIAL_PAGE,
         pageCount = { JournalHomeViewModel.PAGE_COUNT }
@@ -59,7 +60,31 @@ fun JournalHomeScreen(
     var isProgrammaticNavigation by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // Show snackbar when saveError is set
+    // Blur system bars when loading
+    DisposableEffect(state.isSaving) {
+        if (state.isSaving) {
+            // Blur the system bars during loading
+            systemUiController.setSystemBarsColor(
+                color = Color.Black.copy(alpha = 0.3f),
+                darkIcons = false
+            )
+        } else {
+            // Reset to default theme colors when not loading
+            systemUiController.setSystemBarsColor(
+                color = Color(0xFF2F1C19),
+                darkIcons = false
+            )
+        }
+        onDispose {
+            // Ensure we reset when component is disposed
+            systemUiController.setSystemBarsColor(
+                color = Color(0xFF2F1C19),
+                darkIcons = false
+            )
+        }
+    }
+
+    // Show snack bar when saveError is set
     LaunchedEffect(state.saveError) {
         state.saveError?.let { error ->
             snackbarHostState.showSnackbar(error)
