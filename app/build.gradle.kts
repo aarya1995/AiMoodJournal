@@ -78,6 +78,8 @@ dependencies {
 
     implementation("com.google.mediapipe:tasks-genai:0.10.24")
 
+    implementation("com.airbnb.android:lottie-compose:4.0.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

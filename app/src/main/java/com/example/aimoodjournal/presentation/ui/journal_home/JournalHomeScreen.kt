@@ -2,7 +2,6 @@ package com.example.aimoodjournal.presentation.ui.journal_home
 
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -12,6 +11,7 @@ import androidx.compose.foundation.text.selection.TextSelectionColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,6 +26,9 @@ import com.example.aimoodjournal.presentation.ui.shared.LoadingDots
 import java.time.LocalDate
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
+import com.example.aimoodjournal.R
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -38,7 +41,7 @@ fun JournalHomeScreen(
         initialPage = JournalHomeViewModel.INITIAL_PAGE,
         pageCount = { JournalHomeViewModel.PAGE_COUNT }
     )
-    
+
     var showDatePicker by remember { mutableStateOf(false) }
     var isProgrammaticNavigation by remember { mutableStateOf(false) }
 
@@ -66,6 +69,7 @@ fun JournalHomeScreen(
             state.isLoading -> {
                 LoadingDots()
             }
+
             state.error != null -> {
                 Text(
                     text = state.error!!,
@@ -75,6 +79,7 @@ fun JournalHomeScreen(
                     modifier = Modifier.padding(horizontal = 24.dp)
                 )
             }
+
             !state.isModelInstalled -> {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -93,6 +98,7 @@ fun JournalHomeScreen(
                     )
                 }
             }
+
             else -> {
                 Column(
                     modifier = Modifier.fillMaxSize(),
@@ -106,7 +112,7 @@ fun JournalHomeScreen(
                         onDateClick = { showDatePicker = true },
                         getFormattedDate = viewModel::getFormattedDate
                     )
-                    
+
                     // Horizontal Pager for Journal Entries
                     HorizontalPager(
                         state = pagerState,
@@ -115,11 +121,12 @@ fun JournalHomeScreen(
                         val pageDate = viewModel.getDateForPage(pageIndex)
                         JournalEntryPage(
                             date = pageDate,
-                            pageIndex = pageIndex
+                            pageIndex = pageIndex,
+                            viewModel = viewModel
                         )
                     }
                 }
-                
+
                 // Date Picker Dialog
                 if (showDatePicker) {
                     DatePickerDialog(
@@ -162,19 +169,31 @@ fun DatePickerHeader(
                 tint = Color.White
             )
         }
-        
-        // Date Display (Clickable)
-        Text(
-            text = getFormattedDate(currentDate),
-            style = MaterialTheme.typography.headlineMedium,
-            color = Color.White,
-            textAlign = TextAlign.Center,
+
+        // Date Display (Clickable) with Down Caret
+        Row(
             modifier = Modifier
                 .weight(1f)
                 .clickable { onDateClick() }
-                .padding(vertical = 8.dp)
-        )
-        
+                .padding(vertical = 8.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = getFormattedDate(currentDate),
+                style = MaterialTheme.typography.headlineMedium,
+                color = Color.White,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = "Open Date Picker",
+                tint = Color.White.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
         // Next Date Button
         IconButton(
             onClick = onNextDate,
@@ -198,9 +217,10 @@ fun DatePickerDialog(
     initialDate: LocalDate
 ) {
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = initialDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        initialSelectedDateMillis = initialDate.atStartOfDay(java.time.ZoneId.systemDefault())
+            .toInstant().toEpochMilli()
     )
-    
+
     DatePickerDialog(
         onDismissRequest = onDismissRequest,
         confirmButton = {
@@ -254,11 +274,16 @@ fun DatePickerDialog(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun JournalEntryPage(
     date: LocalDate,
-    pageIndex: Int
+    pageIndex: Int,
+    viewModel: JournalHomeViewModel = hiltViewModel()
 ) {
+    val state by viewModel.state.collectAsState()
+    val journal = viewModel.getJournalForDate(date)
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier
@@ -266,8 +291,8 @@ fun JournalEntryPage(
             .padding(24.dp)
     ) {
         TextField(
-            value = "",
-            onValueChange = {},
+            value = state.currentJournalText,
+            onValueChange = viewModel::onJournalTextChanged,
             placeholder = {
                 Text(
                     text = "What's on your mind?",
@@ -286,11 +311,83 @@ fun JournalEntryPage(
                 )
             ),
             keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Words
+                capitalization = KeyboardCapitalization.Sentences
             ),
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            enabled = true,
+            singleLine = false, // Allow multiple lines for journal entries
+            enabled = !state.isSaving,
+            minLines = 3,
+            maxLines = 10
         )
+
+        // Show AI report if available
+        journal?.aiReport?.let { aiReport ->
+            if (aiReport.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "AI Report",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                )
+                Text(
+                    text = aiReport,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+
+        // Show save error if any
+        state.saveError?.let { error ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = error,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Red,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // Spacer to push the button to the bottom
+        Spacer(modifier = Modifier.weight(1f))
+
+        // Analyze Button
+        Button(
+            onClick = viewModel::saveJournalEntry,
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF926247)
+            ),
+            enabled = state.currentJournalText.trim().isNotEmpty() && !state.isSaving
+        ) {
+            if (state.isSaving) {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Saving...",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White
+                )
+            } else {
+                Icon(
+                    painter = painterResource(id = R.drawable.ai_icon),
+                    contentDescription = "AI Analysis",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Analyze",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+        }
     }
 } 
