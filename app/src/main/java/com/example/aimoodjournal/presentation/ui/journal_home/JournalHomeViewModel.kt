@@ -70,6 +70,7 @@ class JournalHomeViewModel @Inject constructor(
         const val INITIAL_PAGE =
             10000 // Start in the middle to allow equal backwards/forwards navigation
         const val FETCH_RANGE_YEARS = 2 // Fetch 2 years before and after current date
+        const val MIN_JOURNAL_TEXT_LENGTH = 40 // Minimum characters required for journal entry
     }
 
     init {
@@ -166,6 +167,7 @@ class JournalHomeViewModel @Inject constructor(
         val currentText = _state.value.currentJournalText.trim()
         val userData = _state.value.currentUserData
         if (currentText.isEmpty()) return
+        if (currentText.length < MIN_JOURNAL_TEXT_LENGTH) return
         if (userData == null) return
 
         viewModelScope.launch {
@@ -173,7 +175,8 @@ class JournalHomeViewModel @Inject constructor(
                 _state.update { it.copy(isSaving = true, saveError = null) }
 
                 val currentDate = _state.value.currentDate
-                val timestamp = currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val timestamp =
+                    currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
                 // Generate AI response in background thread
                 val aiReport = withContext(Dispatchers.IO) {
@@ -264,6 +267,7 @@ class JournalHomeViewModel @Inject constructor(
                 ).absolutePath
             )
             .setMaxTopK(64)
+            .setMaxTokens(5000)
             .build()
 
         // Create and return an instance of the LLM Inference task

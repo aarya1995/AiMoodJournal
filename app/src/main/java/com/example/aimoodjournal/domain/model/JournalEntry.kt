@@ -44,7 +44,7 @@ fun JournalEntry.toJournal(): Journal {
     } ?: ""
     
     return Journal(
-        id = id ?: -1L,
+        id = id ?: 0L,
         timestamp = timestamp,
         journalText = journalText,
         imagePath = imagePath,

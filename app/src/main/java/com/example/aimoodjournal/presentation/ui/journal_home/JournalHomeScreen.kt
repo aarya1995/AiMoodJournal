@@ -43,6 +43,7 @@ import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import androidx.compose.ui.platform.LocalView
 
 private const val JOURNAL_TEXT_PREVIEW_LENGTH = 150
+private const val MIN_JOURNAL_TEXT_LENGTH = 40
 
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
@@ -174,7 +175,7 @@ fun JournalHomeScreen(
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        text = "Please run the push_gemma.sh script to install the required model.",
+                        text = "Please run the push_gemma.sh script to install the required model. Then restart the app.",
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center
                     )
@@ -206,7 +207,8 @@ fun JournalHomeScreen(
                     // Horizontal Pager for Journal Entries
                     HorizontalPager(
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = !state.isSaving
                     ) { pageIndex ->
                         val pageDate = viewModel.getDateForPage(pageIndex)
                         JournalEntryPage(
@@ -399,6 +401,7 @@ fun JournalEntryPage(
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AIReportSection(
@@ -559,6 +562,47 @@ fun AIReportSection(
                         color = Color.White,
                     )
                 }
+                if (journal.aiReport?.journalHighlights?.isEmpty() == false) {
+                    Spacer(modifier = Modifier.height(40.dp))
+                    Text(
+                        text = "Journal Highlights",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        colors = CardDefaults.cardColors().copy(
+                            containerColor = Color(0xFF2F1C19)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
+                        ) {
+                            journal.aiReport.journalHighlights.map { highlight ->
+                                Row (
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.green_checkmark_ic),
+                                        contentDescription = "green checkmark",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = highlight,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = Color.White,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(40.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -699,6 +743,22 @@ fun JournalEntrySection(
             maxLines = 10
         )
 
+        // Character count and minimum requirement messaging
+        val currentLength = state.currentJournalText.length
+        val isMinLengthMet = currentLength >= MIN_JOURNAL_TEXT_LENGTH
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "$currentLength / $MIN_JOURNAL_TEXT_LENGTH characters",
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isMinLengthMet) Color.White.copy(alpha = 0.7f) else Color(0xFF926247),
+            )
+        }
+
         // Spacer to push the button to the bottom
         Spacer(modifier = Modifier.weight(1f))
 
@@ -709,7 +769,9 @@ fun JournalEntrySection(
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF926247)
             ),
-            enabled = state.currentJournalText.trim().isNotEmpty() && !state.isSaving
+            enabled = state.currentJournalText.trim().isNotEmpty() && 
+                     state.currentJournalText.length >= MIN_JOURNAL_TEXT_LENGTH && 
+                     !state.isSaving
         ) {
             if (state.isSaving) {
                 CircularProgressIndicator(
