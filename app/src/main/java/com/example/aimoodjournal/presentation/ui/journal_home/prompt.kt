@@ -25,7 +25,7 @@ fun getPromptContext(userData: UserData): String {
         - mood: a comma separated list of moods based on the user's journal entry (e.g. ["Anxious", "Reflective"])
         - emotion: a single emotion based on the user's journal entry (e.g. "Overwhelmed")
         - trend: skip for now and just return null
-        - emoji: This will be a string that maps to one of the following based on the journal entry ("happy", "sad", "neutral")
+        - emoji: This will be a string that maps to one of the following based on the journal entry ("overjoyed", "happy", "neutral", "sad", "depressed")
         
         Avoid sounding too clinical in the analysis, instead assume you a friendly and helpful role. Avoid stating obvious
         things in the output like the user's bio data. Only use that as context and to aid in the analysis.

@@ -2,13 +2,16 @@ package com.example.aimoodjournal.presentation.ui.journal_home
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.TextSelectionColors
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.KeyboardArrowRight
@@ -31,15 +34,23 @@ import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.zIndex
 import com.example.aimoodjournal.R
+import com.example.aimoodjournal.domain.model.AIReport
+import com.example.aimoodjournal.domain.model.JournalEntry
+import com.example.aimoodjournal.presentation.ui.shared.CurvedTopCard
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.compose.ui.platform.LocalView
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun JournalHomeScreen(
     onNavigateToHistory: () -> Unit,
     viewModel: JournalHomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
+    val systemUiController = rememberSystemUiController()
+    val view = LocalView.current
     val pagerState = rememberPagerState(
         initialPage = JournalHomeViewModel.INITIAL_PAGE,
         pageCount = { JournalHomeViewModel.PAGE_COUNT }
@@ -47,6 +58,50 @@ fun JournalHomeScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
     var isProgrammaticNavigation by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Track previous saving state for haptic feedback
+    var wasSaving by remember { mutableStateOf(false) }
+
+    // Blur system bars when loading
+    DisposableEffect(state.isSaving) {
+        if (state.isSaving) {
+            // Blur the system bars during loading
+            systemUiController.setSystemBarsColor(
+                color = Color.Black.copy(alpha = 0.3f),
+                darkIcons = false
+            )
+        } else {
+            // Reset to default theme colors when not loading
+            systemUiController.setSystemBarsColor(
+                color = Color(0xFF2F1C19),
+                darkIcons = false
+            )
+        }
+        onDispose {
+            // Ensure we reset when component is disposed
+            systemUiController.setSystemBarsColor(
+                color = Color(0xFF2F1C19),
+                darkIcons = false
+            )
+        }
+    }
+
+    // Haptic feedback when saving completes
+    LaunchedEffect(state.isSaving) {
+        if (wasSaving && !state.isSaving) {
+            // Transition from saving to not saving - play haptic feedback
+            view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM)
+        }
+        wasSaving = state.isSaving
+    }
+
+    // Show snack bar when saveError is set
+    LaunchedEffect(state.saveError) {
+        state.saveError?.let { error ->
+            snackbarHostState.showSnackbar(error)
+        }
+    }
 
     // Sync pager state with ViewModel state (only when arrow buttons are pressed or date picker is used)
     LaunchedEffect(state.currentPageIndex) {
@@ -68,6 +123,28 @@ fun JournalHomeScreen(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        // Snackbar Host at the bottom with dark theme
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .zIndex(2f)
+                .padding(16.dp),
+            snackbar = { data ->
+                Snackbar(
+                    containerColor = Color(0xFF2F1C19),
+                    contentColor = Color.White
+                ) {
+                    Text(
+                        text = data.visuals.message,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+        )
+
         when {
             state.isLoading -> {
                 LoadingDots()
@@ -132,7 +209,6 @@ fun JournalHomeScreen(
                         val pageDate = viewModel.getDateForPage(pageIndex)
                         JournalEntryPage(
                             date = pageDate,
-                            pageIndex = pageIndex,
                             viewModel = viewModel
                         )
                     }
@@ -301,12 +377,251 @@ fun DatePickerDialog(
 @Composable
 fun JournalEntryPage(
     date: LocalDate,
-    pageIndex: Int,
     viewModel: JournalHomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val journal = viewModel.getJournalForDate(date)
+    if (journal?.aiReport == null) {
+        JournalEntrySection(
+            journal = journal,
+            state = state,
+            viewModel = viewModel,
+        )
+    } else {
+        AIReportSection(
+            journal = journal,
+            aiReport = journal.aiReport,
+            state = state,
+            viewModel = viewModel,
+        )
+    }
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AIReportSection(
+    modifier: Modifier = Modifier,
+    journal: JournalEntry,
+    aiReport: AIReport,
+    state: JournalHomeState,
+    viewModel: JournalHomeViewModel,
+) {
+    val systemUiController = rememberSystemUiController()
+    val curvedTopCardColor = Color(0xFF533630)
+
+    // Change navigation bar color when AI Report is displayed
+    DisposableEffect(Unit) {
+        systemUiController.setNavigationBarColor(
+            color = curvedTopCardColor,
+            darkIcons = false
+        )
+        onDispose {
+            // Reset to default theme colors when leaving the screen
+            systemUiController.setNavigationBarColor(
+                color = Color(0xFF2F1C19),
+                darkIcons = false
+            )
+        }
+    }
+
+    val numWords = journal.journalText.trim().split("\\s+".toRegex()).size
+    val emoji = when (aiReport.emoji) {
+        "overjoyed" -> R.drawable.overjoyed_ic
+        "happy" -> R.drawable.hapy_ic
+        "neutral" -> R.drawable.neutral_ic
+        "sad" -> R.drawable.sad_ic
+        "depressed" -> R.drawable.depressed_ic
+        else -> R.drawable.neutral_ic
+    }
+    Column(
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ai_icon),
+                tint = Color(0xFF926247),
+                contentDescription = "ai report icon",
+                modifier = Modifier
+                    .size(45.dp),
+            )
+            Text(
+                text = aiReport.journalTitle,
+                style = MaterialTheme.typography.displaySmall.copy(fontWeight = FontWeight.Bold),
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "$numWords Total Words",
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = aiReport.journalSummary,
+                style = MaterialTheme.typography.bodyLarge,
+                color = Color.White.copy(alpha = 0.8f),
+                textAlign = TextAlign.Center,
+            )
+        }
+        CurvedTopCard(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 0.dp),
+            curveHeight = 40f
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight()
+                    .padding(24.dp)
+            ) {
+                Spacer(modifier = Modifier.height(40.dp))
+                Text(
+                    text = "Key Metrics",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.mood_ic),
+                            contentDescription = "Mood Icon",
+                            tint = Color(0xFFD6D3D1),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Mood",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White,
+                        )
+                    }
+                    Text(
+                        text = aiReport.mood.joinToString(),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White,
+                    )
+                }
+                HorizontalDivider(
+                    color = Color.LightGray,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.emotion_ic),
+                            contentDescription = "Emotion",
+                            tint = Color(0xFFD6D3D1),
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Emotion",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White,
+                        )
+                    }
+                    Text(
+                        text = aiReport.emotion,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White,
+                    )
+                }
+                Spacer(modifier = Modifier.height(40.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.book_ic),
+                        contentDescription = "Book Icon",
+                        tint = Color(0xFFA8A29E),
+                        modifier = Modifier.size(30.dp)
+                    )
+                    Text(
+                        text = "Journal Entry",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White,
+                    )
+                }
+                Spacer(modifier = Modifier.height(20.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    colors = CardDefaults.cardColors().copy(
+                        containerColor = Color(0xFF2F1C19)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        Image(
+                            painter = painterResource(emoji),
+                            contentDescription = "Emoji",
+                            modifier = Modifier.size(50.dp),
+                        )
+                        Text(
+                            text = journal.journalText,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(40.dp))
+                Button(
+                    onClick = { },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF926247)
+                    ),
+                ) {
+                    Text(
+                        text = "Edit Journal",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                    Icon(
+                        painter = painterResource(id = R.drawable.edit_pencil_ic),
+                        contentDescription = "AI Analysis",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun JournalEntrySection(
+    modifier: Modifier = Modifier,
+    journal: JournalEntry?,
+    state: JournalHomeState,
+    viewModel: JournalHomeViewModel,
+) {
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier
@@ -382,17 +697,14 @@ fun JournalEntryPage(
                 color = Color.White.copy(alpha = 0.8f),
                 modifier = Modifier.fillMaxWidth()
             )
-        }
-
-        // Show save error if any
-        state.saveError?.let { error ->
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = error,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Red,
-                modifier = Modifier.fillMaxWidth()
-            )
+            aiReport.journalHighlights.map {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.8f),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
 
         // Spacer to push the button to the bottom
@@ -420,18 +732,17 @@ fun JournalEntryPage(
                     modifier = Modifier.padding(16.dp)
                 )
             } else {
-                Icon(
-                    painter = painterResource(id = R.drawable.ai_icon),
-                    contentDescription = "AI Analysis",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Analyze",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = Color.White,
                     modifier = Modifier.padding(16.dp)
+                )
+                Icon(
+                    painter = painterResource(id = R.drawable.ai_icon),
+                    contentDescription = "AI Analysis",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }

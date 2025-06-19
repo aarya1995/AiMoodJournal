@@ -188,11 +188,19 @@ class JournalHomeViewModel @Inject constructor(
 
                 Log.d("JournalHomeViewModel", "AI Report: $aiReport")
                 // Create journal entry with AI report
+                if (aiReport == null) {
+                    _state.update {
+                        it.copy(
+                            saveError = "AI report failed to generate."
+                        )
+                    }
+                }
+
                 val journal = JournalEntry(
                     timestamp = timestamp,
                     journalText = currentText,
                     imagePath = null, // TODO: Add image support later
-                    aiReport = aiReport,
+                    aiReport = aiReport
                 )
 
                 // Save to database
