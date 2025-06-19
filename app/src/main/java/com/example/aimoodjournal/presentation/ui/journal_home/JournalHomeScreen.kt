@@ -1,6 +1,5 @@
 package com.example.aimoodjournal.presentation.ui.journal_home
 
-import android.graphics.drawable.Drawable
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Image
@@ -40,10 +39,10 @@ import com.example.aimoodjournal.R
 import com.example.aimoodjournal.domain.model.AIReport
 import com.example.aimoodjournal.domain.model.JournalEntry
 import com.example.aimoodjournal.presentation.ui.shared.CurvedTopCard
-import okhttp3.internal.wait
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
+import androidx.compose.ui.platform.LocalView
 
-@RequiresApi(Build.VERSION_CODES.O)
+@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun JournalHomeScreen(
     onNavigateToHistory: () -> Unit,
@@ -51,6 +50,7 @@ fun JournalHomeScreen(
 ) {
     val state by viewModel.state.collectAsState()
     val systemUiController = rememberSystemUiController()
+    val view = LocalView.current
     val pagerState = rememberPagerState(
         initialPage = JournalHomeViewModel.INITIAL_PAGE,
         pageCount = { JournalHomeViewModel.PAGE_COUNT }
@@ -59,6 +59,9 @@ fun JournalHomeScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     var isProgrammaticNavigation by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
+
+    // Track previous saving state for haptic feedback
+    var wasSaving by remember { mutableStateOf(false) }
 
     // Blur system bars when loading
     DisposableEffect(state.isSaving) {
@@ -82,6 +85,15 @@ fun JournalHomeScreen(
                 darkIcons = false
             )
         }
+    }
+
+    // Haptic feedback when saving completes
+    LaunchedEffect(state.isSaving) {
+        if (wasSaving && !state.isSaving) {
+            // Transition from saving to not saving - play haptic feedback
+            view.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM)
+        }
+        wasSaving = state.isSaving
     }
 
     // Show snack bar when saveError is set
@@ -396,7 +408,7 @@ fun AIReportSection(
 ) {
     val systemUiController = rememberSystemUiController()
     val curvedTopCardColor = Color(0xFF533630)
-    
+
     // Change navigation bar color when AI Report is displayed
     DisposableEffect(Unit) {
         systemUiController.setNavigationBarColor(
@@ -411,7 +423,7 @@ fun AIReportSection(
             )
         }
     }
-    
+
     val numWords = journal.journalText.trim().split("\\s+".toRegex()).size
     val emoji = when (aiReport.emoji) {
         "overjoyed" -> R.drawable.overjoyed_ic
@@ -428,7 +440,7 @@ fun AIReportSection(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        Column (
+        Column(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.padding(24.dp)
@@ -578,7 +590,7 @@ fun AIReportSection(
                 }
                 Spacer(modifier = Modifier.height(40.dp))
                 Button(
-                    onClick = {  },
+                    onClick = { },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF926247)
