@@ -207,7 +207,8 @@ fun JournalHomeScreen(
                     // Horizontal Pager for Journal Entries
                     HorizontalPager(
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        userScrollEnabled = !state.isSaving
                     ) { pageIndex ->
                         val pageDate = viewModel.getDateForPage(pageIndex)
                         JournalEntryPage(
