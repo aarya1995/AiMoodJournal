@@ -1,7 +1,5 @@
 package com.example.aimoodjournal.domain.model
 
-import android.graphics.drawable.Drawable
-
 data class AIReport(
     val journalTitle: String,
     val journalSummary: String,
@@ -9,4 +7,5 @@ data class AIReport(
     val emotion: String,
     val trend: Float? = null,
     val emoji: String? = null,
+    val journalHighlights: List<String>,
 )
