@@ -353,7 +353,31 @@ fun JournalEntryPage(
                 fontWeight = FontWeight.Bold
             )
             Text(
+                text = aiReport.journalTitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
                 text = aiReport.journalSummary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = aiReport.mood.joinToString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = aiReport.emotion,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = aiReport.emoji ?: "",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.8f),
                 modifier = Modifier.fillMaxWidth()
