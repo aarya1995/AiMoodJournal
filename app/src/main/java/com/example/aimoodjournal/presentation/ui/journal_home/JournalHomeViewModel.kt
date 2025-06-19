@@ -6,12 +6,10 @@ import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.aimoodjournal.data.dao.Journal
+import com.example.aimoodjournal.domain.model.JournalEntry
 import com.example.aimoodjournal.domain.repository.JournalRepository
-import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +30,7 @@ data class JournalHomeState(
     val error: String? = null,
     val currentDate: LocalDate = LocalDate.now(),
     val currentPageIndex: Int = 10000, // Start at a large positive number to allow backwards navigation
-    val journalEntries: Map<LocalDate, Journal> = emptyMap(),
+    val journalEntries: Map<LocalDate, JournalEntry> = emptyMap(),
     val isJournalLoading: Boolean = false,
     val journalError: String? = null,
     val currentJournalText: String = "",
@@ -81,7 +79,7 @@ class JournalHomeViewModel @Inject constructor(
         return today.plusDays(daysFromToday.toLong())
     }
 
-    fun getJournalForDate(date: LocalDate): Journal? {
+    fun getJournalForDate(date: LocalDate): JournalEntry? {
         return _state.value.journalEntries[date]
     }
 
@@ -146,11 +144,11 @@ class JournalHomeViewModel @Inject constructor(
                 val timestamp =
                     currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-                val journal = Journal(
+                val journal = JournalEntry(
                     timestamp = timestamp,
                     journalText = currentText,
                     imagePath = null, // TODO: Add image support later
-                    aiReport = "" // TODO: Add AI analysis later
+                    aiReport = null, // TODO: Add AI analysis later
                 )
 
                 val journalId = journalRepository.insertJournal(journal)
