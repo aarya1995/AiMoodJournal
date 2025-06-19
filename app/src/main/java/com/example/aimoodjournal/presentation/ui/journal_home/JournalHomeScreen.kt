@@ -42,6 +42,8 @@ import com.example.aimoodjournal.presentation.ui.shared.CurvedTopCard
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import androidx.compose.ui.platform.LocalView
 
+private const val JOURNAL_TEXT_PREVIEW_LENGTH = 150
+
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun JournalHomeScreen(
@@ -408,6 +410,7 @@ fun AIReportSection(
 ) {
     val systemUiController = rememberSystemUiController()
     val curvedTopCardColor = Color(0xFF533630)
+    var isJournalTextExpanded by remember { mutableStateOf(false) }
 
     // Change navigation bar color when AI Report is displayed
     DisposableEffect(Unit) {
@@ -433,6 +436,18 @@ fun AIReportSection(
         "depressed" -> R.drawable.depressed_ic
         else -> R.drawable.neutral_ic
     }
+
+    // Get truncated or full text based on expansion state
+    val displayText = if (isJournalTextExpanded) {
+        journal.journalText
+    } else {
+        if (journal.journalText.length > JOURNAL_TEXT_PREVIEW_LENGTH) {
+            journal.journalText.take(JOURNAL_TEXT_PREVIEW_LENGTH) + "..."
+        } else {
+            journal.journalText
+        }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -580,12 +595,38 @@ fun AIReportSection(
                             contentDescription = "Emoji",
                             modifier = Modifier.size(50.dp),
                         )
-                        Text(
-                            text = journal.journalText,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color.White,
-                            textAlign = TextAlign.Center
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = displayText,
+                                style = MaterialTheme.typography.titleMedium,
+                                color = Color.White,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .clickable(
+                                        enabled = journal.journalText.length > JOURNAL_TEXT_PREVIEW_LENGTH
+                                    ) {
+                                        if (journal.journalText.length > JOURNAL_TEXT_PREVIEW_LENGTH) {
+                                            isJournalTextExpanded = !isJournalTextExpanded
+                                        }
+                                    }
+                            )
+                            // Show expand/collapse indicator only if text is long enough
+                            if (journal.journalText.length > JOURNAL_TEXT_PREVIEW_LENGTH) {
+                                Spacer(modifier = Modifier.height(20.dp))
+                                Text(
+                                    text = if (isJournalTextExpanded) "Tap to collapse" else "Tap to expand",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier
+                                        .clickable {
+                                            isJournalTextExpanded = !isJournalTextExpanded
+                                        }
+                                )
+                            }
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(40.dp))
