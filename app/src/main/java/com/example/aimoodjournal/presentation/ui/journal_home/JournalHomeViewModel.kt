@@ -2,25 +2,35 @@ package com.example.aimoodjournal.presentation.ui.journal_home
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.aimoodjournal.data.dao.Journal
+import com.example.aimoodjournal.domain.model.AIReport
+import com.example.aimoodjournal.domain.model.JournalEntry
+import com.example.aimoodjournal.domain.model.UserData
 import com.example.aimoodjournal.domain.repository.JournalRepository
+import com.example.aimoodjournal.domain.repository.UserRepository
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.gson.Gson
+import com.google.gson.JsonSyntaxException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 import javax.inject.Inject
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -32,19 +42,21 @@ data class JournalHomeState(
     val error: String? = null,
     val currentDate: LocalDate = LocalDate.now(),
     val currentPageIndex: Int = 10000, // Start at a large positive number to allow backwards navigation
-    val journalEntries: Map<LocalDate, Journal> = emptyMap(),
+    val journalEntries: Map<LocalDate, JournalEntry> = emptyMap(),
     val isJournalLoading: Boolean = false,
     val journalError: String? = null,
     val currentJournalText: String = "",
     val isSaving: Boolean = false,
-    val saveError: String? = null
+    val saveError: String? = null,
+    val currentUserData: UserData? = null,
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
 @HiltViewModel
 class JournalHomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val journalRepository: JournalRepository
+    private val journalRepository: JournalRepository,
+    private val userRepository: UserRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(JournalHomeState())
     val state: StateFlow<JournalHomeState> = _state.asStateFlow()
@@ -62,6 +74,17 @@ class JournalHomeViewModel @Inject constructor(
     init {
         checkModelInstallation()
         loadJournalEntries()
+        loadUserData()
+    }
+
+    private fun loadUserData() {
+        viewModelScope.launch {
+            userRepository.getUserData().collectLatest { userData ->
+                _state.update {
+                    it.copy(currentUserData = userData)
+                }
+            }
+        }
     }
 
     fun getFormattedDate(date: LocalDate): String {
@@ -81,7 +104,7 @@ class JournalHomeViewModel @Inject constructor(
         return today.plusDays(daysFromToday.toLong())
     }
 
-    fun getJournalForDate(date: LocalDate): Journal? {
+    fun getJournalForDate(date: LocalDate): JournalEntry? {
         return _state.value.journalEntries[date]
     }
 
@@ -136,23 +159,43 @@ class JournalHomeViewModel @Inject constructor(
 
     fun saveJournalEntry() {
         val currentText = _state.value.currentJournalText.trim()
+        val userData = _state.value.currentUserData
         if (currentText.isEmpty()) return
+        if (userData == null) return
 
         viewModelScope.launch {
             try {
                 _state.update { it.copy(isSaving = true, saveError = null) }
 
                 val currentDate = _state.value.currentDate
-                val timestamp =
-                    currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val timestamp = currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
 
-                val journal = Journal(
+                // Generate AI response in background thread
+                val aiReport = withContext(Dispatchers.IO) {
+                    try {
+                        val llmInference = createLLMInferenceTask()
+                        val promptContext = getPromptContext(userData)
+                        val response = llmInference.generateResponse(promptContext + currentText)
+                        Log.d("JournalHomeViewModel", "AI Response: $response")
+
+                        // Parse the JSON response into AIReport
+                        parseAIResponse(response)
+                    } catch (e: Exception) {
+                        Log.e("JournalHomeViewModel", "Error generating AI response", e)
+                        null
+                    }
+                }
+
+                Log.d("JournalHomeViewModel", "AI Report: $aiReport")
+                // Create journal entry with AI report
+                val journal = JournalEntry(
                     timestamp = timestamp,
                     journalText = currentText,
                     imagePath = null, // TODO: Add image support later
-                    aiReport = "" // TODO: Add AI analysis later
+                    aiReport = aiReport,
                 )
 
+                // Save to database
                 val journalId = journalRepository.insertJournal(journal)
 
                 // Update the journal entries map with the new entry
@@ -173,6 +216,38 @@ class JournalHomeViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun parseAIResponse(response: String): AIReport? {
+        return try {
+            // Clean the response - remove any extra text before or after the JSON
+            val jsonStart = response.indexOf('{')
+            val jsonEnd = response.lastIndexOf('}') + 1
+            if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                val jsonString = response.substring(jsonStart, jsonEnd)
+                Gson().fromJson(jsonString, AIReport::class.java)
+            } else {
+                null
+            }
+        } catch (e: JsonSyntaxException) {
+            Log.e("JournalHomeViewModel", "Error parsing AI response JSON", e)
+            null
+        }
+    }
+
+    private fun createLLMInferenceTask(): LlmInference {
+        val taskOptions = LlmInference.LlmInferenceOptions.builder()
+            .setModelPath(
+                File(
+                    context.filesDir,
+                    "models/gemma-3n-E4B-it-int4.task"
+                ).absolutePath
+            )
+            .setMaxTopK(64)
+            .build()
+
+        // Create and return an instance of the LLM Inference task
+        return LlmInference.createFromOptions(context, taskOptions)
     }
 
     private fun updateCurrentJournalText() {

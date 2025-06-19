@@ -2,6 +2,7 @@ package com.example.aimoodjournal.data.repository
 
 import com.example.aimoodjournal.data.datastore.UserPreferences
 import com.example.aimoodjournal.domain.model.UserBiometrics
+import com.example.aimoodjournal.domain.model.UserData
 import com.example.aimoodjournal.domain.repository.UserRepository
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
@@ -29,5 +30,9 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun isNuxCompleted(): Flow<Boolean> {
         return userPreferences.isNuxCompleted()
+    }
+
+    override fun getUserData(): Flow<UserData> {
+        return userPreferences.getUserData()
     }
 } 

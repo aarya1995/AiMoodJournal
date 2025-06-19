@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.example.aimoodjournal.domain.model.UserData
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -63,5 +64,20 @@ class UserPreferences @Inject constructor(
         context.dataStore.edit { preferences ->
             preferences[userDobKey] = dob
         }
+    }
+
+    fun getUserData(): Flow<UserData> {
+        return context.dataStore.data
+            .map { preferences ->
+                val userName = preferences[userNameKey]
+                val userGender = preferences[userGenderKey]
+                val userDob = preferences[userDobKey]
+
+                UserData(
+                    name = userName ?: "",
+                    gender = userGender ?: "",
+                    dateOfBirth = userDob ?: ""
+                )
+            }
     }
 }

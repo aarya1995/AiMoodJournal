@@ -23,12 +23,9 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.aimoodjournal.presentation.ui.shared.LoadingDots
 import com.example.aimoodjournal.presentation.ui.shared.AiLoadingAnimationLarge
-import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import java.time.LocalDate
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
@@ -348,21 +345,43 @@ fun JournalEntryPage(
 
         // Show AI report if available
         journal?.aiReport?.let { aiReport ->
-            if (aiReport.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "AI Report",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                )
-                Text(
-                    text = aiReport,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "AI Report",
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = aiReport.journalTitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = aiReport.journalSummary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = aiReport.mood.joinToString(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = aiReport.emotion,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                text = aiReport.emoji ?: "",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.fillMaxWidth()
+            )
         }
 
         // Show save error if any

@@ -1,6 +1,7 @@
 package com.example.aimoodjournal.domain.repository
 
 import com.example.aimoodjournal.domain.model.UserBiometrics
+import com.example.aimoodjournal.domain.model.UserData
 import kotlinx.coroutines.flow.Flow
 
 interface UserRepository {
@@ -9,4 +10,5 @@ interface UserRepository {
     fun getUserName(): Flow<String?>
     suspend fun completeNux()
     fun isNuxCompleted(): Flow<Boolean>
+    fun getUserData(): Flow<UserData>
 } 

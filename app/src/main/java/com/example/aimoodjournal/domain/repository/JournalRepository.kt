@@ -1,15 +1,15 @@
 package com.example.aimoodjournal.domain.repository
 
-import com.example.aimoodjournal.data.dao.Journal
+import com.example.aimoodjournal.domain.model.JournalEntry
 import kotlinx.coroutines.flow.Flow
 
 interface JournalRepository {
-    suspend fun insertJournal(journal: Journal): Long
-    suspend fun updateJournal(journal: Journal)
-    suspend fun deleteJournal(journal: Journal)
-    fun getAllJournals(): Flow<List<Journal>>
-    suspend fun getJournalById(id: Long): Journal?
-    fun getJournalsInTimeRange(startTime: Long, endTime: Long): Flow<List<Journal>>
-    suspend fun getLatestJournal(): Journal?
-    suspend fun getJournalForDate(startOfDay: Long, startOfNextDay: Long): Journal?
+    suspend fun insertJournal(journal: JournalEntry): Long
+    suspend fun updateJournal(journal: JournalEntry)
+    suspend fun deleteJournal(journal: JournalEntry)
+    fun getAllJournals(): Flow<List<JournalEntry>>
+    suspend fun getJournalById(id: Long): JournalEntry?
+    fun getJournalsInTimeRange(startTime: Long, endTime: Long): Flow<List<JournalEntry>>
+    suspend fun getLatestJournal(): JournalEntry?
+    suspend fun getJournalForDate(startOfDay: Long, startOfNextDay: Long): JournalEntry?
 } 
