@@ -562,6 +562,47 @@ fun AIReportSection(
                         color = Color.White,
                     )
                 }
+                if (journal.aiReport?.journalHighlights?.isEmpty() == false) {
+                    Spacer(modifier = Modifier.height(40.dp))
+                    Text(
+                        text = "Journal Highlights",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        colors = CardDefaults.cardColors().copy(
+                            containerColor = Color(0xFF2F1C19)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
+                        ) {
+                            journal.aiReport.journalHighlights.map { highlight ->
+                                Row (
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Image(
+                                        painter = painterResource(R.drawable.green_checkmark_ic),
+                                        contentDescription = "green checkmark",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = highlight,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = Color.White,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(40.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
