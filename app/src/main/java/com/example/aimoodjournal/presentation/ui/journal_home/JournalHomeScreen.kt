@@ -383,7 +383,7 @@ fun JournalEntryPage(
 ) {
     val state by viewModel.state.collectAsState()
     val journal = viewModel.getJournalForDate(date)
-    if (journal?.aiReport == null) {
+    if (journal?.aiReport == null || state.isEditingJournal) {
         JournalEntrySection(
             journal = journal,
             state = state,
@@ -631,7 +631,7 @@ fun AIReportSection(
                 }
                 Spacer(modifier = Modifier.height(40.dp))
                 Button(
-                    onClick = { },
+                    onClick = { viewModel.editJournal() },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF926247)
@@ -698,55 +698,6 @@ fun JournalEntrySection(
             minLines = 3,
             maxLines = 10
         )
-
-        // Show AI report if available
-        journal?.aiReport?.let { aiReport ->
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "AI Report",
-                style = MaterialTheme.typography.titleMedium,
-                color = Color.White,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = aiReport.journalTitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(
-                text = aiReport.journalSummary,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(
-                text = aiReport.mood.joinToString(),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(
-                text = aiReport.emotion,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Text(
-                text = aiReport.emoji ?: "",
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.fillMaxWidth()
-            )
-            aiReport.journalHighlights.map {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.8f),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
 
         // Spacer to push the button to the bottom
         Spacer(modifier = Modifier.weight(1f))
