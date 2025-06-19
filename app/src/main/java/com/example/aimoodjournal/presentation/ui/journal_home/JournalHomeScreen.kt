@@ -31,6 +31,7 @@ import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.zIndex
 import com.example.aimoodjournal.R
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -47,6 +48,14 @@ fun JournalHomeScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
     var isProgrammaticNavigation by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Show snackbar when saveError is set
+    LaunchedEffect(state.saveError) {
+        state.saveError?.let { error ->
+            snackbarHostState.showSnackbar(error)
+        }
+    }
 
     // Sync pager state with ViewModel state (only when arrow buttons are pressed or date picker is used)
     LaunchedEffect(state.currentPageIndex) {
@@ -68,6 +77,28 @@ fun JournalHomeScreen(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        // Snackbar Host at the bottom with dark theme
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .zIndex(2f)
+                .padding(16.dp),
+            snackbar = { data ->
+                Snackbar(
+                    containerColor = Color(0xFF2F1C19),
+                    contentColor = Color.White
+                ) {
+                    Text(
+                        text = data.visuals.message,
+                        color = Color.White,
+                        style = MaterialTheme.typography.titleLarge,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+        )
+
         when {
             state.isLoading -> {
                 LoadingDots()
@@ -380,17 +411,6 @@ fun JournalEntryPage(
                 text = aiReport.emoji ?: "",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        // Show save error if any
-        state.saveError?.let { error ->
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = error,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color.Red,
                 modifier = Modifier.fillMaxWidth()
             )
         }
