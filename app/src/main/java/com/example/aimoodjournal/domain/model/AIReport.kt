@@ -7,4 +7,5 @@ data class AIReport(
     val emotion: String,
     val trend: Float? = null,
     val emoji: String? = null,
+    val journalHighlights: List<String>,
 )
