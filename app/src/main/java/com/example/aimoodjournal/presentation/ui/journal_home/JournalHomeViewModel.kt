@@ -264,6 +264,7 @@ class JournalHomeViewModel @Inject constructor(
                 ).absolutePath
             )
             .setMaxTopK(64)
+            .setMaxTokens(5000)
             .build()
 
         // Create and return an instance of the LLM Inference task

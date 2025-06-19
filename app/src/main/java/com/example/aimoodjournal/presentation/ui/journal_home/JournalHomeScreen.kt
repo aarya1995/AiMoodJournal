@@ -174,7 +174,7 @@ fun JournalHomeScreen(
                         textAlign = TextAlign.Center
                     )
                     Text(
-                        text = "Please run the push_gemma.sh script to install the required model.",
+                        text = "Please run the push_gemma.sh script to install the required model. Then restart the app.",
                         style = MaterialTheme.typography.bodyLarge,
                         textAlign = TextAlign.Center
                     )
