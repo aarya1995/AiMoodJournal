@@ -49,6 +49,7 @@ data class JournalHomeState(
     val isSaving: Boolean = false,
     val saveError: String? = null,
     val currentUserData: UserData? = null,
+    val isEditingJournal: Boolean = false,
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -157,6 +158,10 @@ class JournalHomeViewModel @Inject constructor(
         _state.update { it.copy(currentJournalText = text) }
     }
 
+    fun editJournal() {
+        _state.update { it.copy(isEditingJournal = true) }
+    }
+
     fun saveJournalEntry() {
         val currentText = _state.value.currentJournalText.trim()
         val userData = _state.value.currentUserData
@@ -196,7 +201,12 @@ class JournalHomeViewModel @Inject constructor(
                     }
                 }
 
+                // check if journal entry already exists for today and we are performing an update/upsert
+                val existingJournal = _state.value.journalEntries[currentDate]
+                val existingJournalId = existingJournal?.id
+
                 val journal = JournalEntry(
+                    id = existingJournalId,
                     timestamp = timestamp,
                     journalText = currentText,
                     imagePath = null, // TODO: Add image support later
@@ -212,14 +222,16 @@ class JournalHomeViewModel @Inject constructor(
                         journalEntries = currentState.journalEntries + (currentDate to journal.copy(
                             id = journalId
                         )),
-                        isSaving = false
+                        isSaving = false,
+                        isEditingJournal = false,
                     )
                 }
             } catch (e: Exception) {
                 _state.update {
                     it.copy(
                         isSaving = false,
-                        saveError = e.message ?: "Failed to save journal entry"
+                        saveError = e.message ?: "Failed to save journal entry",
+                        isEditingJournal = false,
                     )
                 }
             }
@@ -263,7 +275,10 @@ class JournalHomeViewModel @Inject constructor(
         val existingJournal = _state.value.journalEntries[currentDate]
 
         _state.update {
-            it.copy(currentJournalText = existingJournal?.journalText ?: "")
+            it.copy(
+                currentJournalText = existingJournal?.journalText ?: "",
+                isEditingJournal = false,
+            )
         }
     }
 
