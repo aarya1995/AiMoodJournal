@@ -2,6 +2,7 @@ package com.example.aimoodjournal.presentation.ui.journal_home
 
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -16,13 +17,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.aimoodjournal.presentation.ui.shared.LoadingDots
+import com.example.aimoodjournal.presentation.ui.shared.AiLoadingAnimationLarge
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import java.time.LocalDate
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.rememberDatePickerState
@@ -101,7 +107,15 @@ fun JournalHomeScreen(
 
             else -> {
                 Column(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (state.isSaving) {
+                                Modifier.blur(10.dp)
+                            } else {
+                                Modifier
+                            }
+                        ),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     // Date Picker Header
@@ -137,6 +151,18 @@ fun JournalHomeScreen(
                         },
                         initialDate = state.currentDate
                     )
+                }
+
+                // AI Analysis Loading Overlay
+                if (state.isSaving) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.3f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AiLoadingAnimationLarge()
+                    }
                 }
             }
         }
@@ -371,7 +397,8 @@ fun JournalEntryPage(
                 Text(
                     text = "Saving...",
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color.White
+                    color = Color.White,
+                    modifier = Modifier.padding(16.dp)
                 )
             } else {
                 Icon(

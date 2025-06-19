@@ -11,6 +11,7 @@ import com.example.aimoodjournal.domain.repository.JournalRepository
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
