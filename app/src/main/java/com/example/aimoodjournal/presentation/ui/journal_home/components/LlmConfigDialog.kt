@@ -64,7 +64,7 @@ fun LlmConfigDialog(
         onDismissRequest = onDismissRequest,
         title = {
             Text(
-                text = "LLM Configuration",
+                text = "Model Configuration",
                 style = MaterialTheme.typography.headlineSmall,
                 color = Color.White
             )
@@ -73,6 +73,12 @@ fun LlmConfigDialog(
             Column(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
+                // Model being used - hardcoded for now
+                Text(
+                    text = "Model: gemma-3n-E4B-it-int4",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.7f),
+                )
                 // Max Tokens
                 Text(
                     text = "Max Tokens: ${currentConfig.maxTokens}",
