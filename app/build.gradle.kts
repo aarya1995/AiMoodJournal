@@ -76,13 +76,20 @@ dependencies {
 
     implementation("com.google.accompanist:accompanist-systemuicontroller:0.32.0")
 
+    // Google Ai Edge Dependencies
     implementation("com.google.mediapipe:tasks-genai:0.10.24")
-
     implementation("com.google.mediapipe:tasks-vision-image-generator:0.10.21")
 
     implementation("com.google.code.gson:gson:2.10.1")
 
     implementation("com.airbnb.android:lottie-compose:4.0.0")
+
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.7.0")
+    implementation("com.google.accompanist:accompanist-systemuicontroller:0.34.0")
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    implementation("com.google.accompanist:accompanist-permissions:0.34.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -91,4 +98,8 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+
+    // For instrumented tests.
+    androidTestImplementation("com.google.dagger:hilt-android-testing:2.51.1")
+    kaptAndroidTest("com.google.dagger:hilt-android-compiler:2.51.1")
 }

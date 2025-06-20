@@ -1,6 +1,10 @@
 package com.example.aimoodjournal.presentation.ui.journal_home.components
 
+import android.Manifest
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -10,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -19,9 +24,12 @@ import com.example.aimoodjournal.R
 import com.example.aimoodjournal.domain.model.JournalEntry
 import com.example.aimoodjournal.presentation.ui.journal_home.JournalHomeState
 import com.example.aimoodjournal.presentation.ui.journal_home.JournalHomeViewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
 private const val MIN_JOURNAL_TEXT_LENGTH = 40
 
+@OptIn(ExperimentalPermissionsApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun JournalEntrySection(
@@ -30,6 +38,34 @@ fun JournalEntrySection(
     state: JournalHomeState,
     viewModel: JournalHomeViewModel,
 ) {
+    val context = LocalContext.current
+    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val permissionsState = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.CAMERA,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.READ_MEDIA_IMAGES
+            } else {
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            }
+        )
+    )
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        imageUri = uri
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success) {
+            // Handle success, image is in the Uri passed to the contract
+        }
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier
@@ -82,12 +118,24 @@ fun JournalEntrySection(
             )
         }
 
+        Spacer(modifier = Modifier.height(40.dp))
+
+        ImageUploadCard(imageUri = imageUri, onBrowseClick = {
+            if (permissionsState.allPermissionsGranted) {
+                galleryLauncher.launch("image/*")
+            } else {
+                permissionsState.launchMultiplePermissionRequest()
+            }
+        })
+
         // Spacer to push the button to the bottom
         Spacer(modifier = Modifier.weight(1f))
 
         // Analyze Button
         Button(
-            onClick = viewModel::saveJournalEntry,
+            onClick = {
+//                viewModel.saveJournalEntry(imageUri)
+            },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF926247)
