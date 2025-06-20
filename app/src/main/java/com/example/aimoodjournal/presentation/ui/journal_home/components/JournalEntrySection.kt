@@ -1,6 +1,7 @@
 package com.example.aimoodjournal.presentation.ui.journal_home.components
 
 import android.Manifest
+import android.content.Context
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -20,14 +21,25 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.example.aimoodjournal.R
 import com.example.aimoodjournal.domain.model.JournalEntry
 import com.example.aimoodjournal.presentation.ui.journal_home.JournalHomeState
 import com.example.aimoodjournal.presentation.ui.journal_home.JournalHomeViewModel
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import java.io.File
 
 private const val MIN_JOURNAL_TEXT_LENGTH = 40
+
+fun createImageUri(context: Context): Uri {
+    val imageFile = File.createTempFile("camera_photo_", ".jpg", context.cacheDir)
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.provider",
+        imageFile
+    )
+}
 
 @OptIn(ExperimentalPermissionsApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
@@ -40,6 +52,8 @@ fun JournalEntrySection(
 ) {
     val context = LocalContext.current
     var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+    var showImageSourceDialog by remember { mutableStateOf(false) }
 
     val permissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
@@ -62,8 +76,33 @@ fun JournalEntrySection(
         contract = ActivityResultContracts.TakePicture()
     ) { success: Boolean ->
         if (success) {
-            // Handle success, image is in the Uri passed to the contract
+            imageUri = tempImageUri
         }
+    }
+
+    if (showImageSourceDialog) {
+        ImageSourceDialog(
+            onDismissRequest = { showImageSourceDialog = false },
+            onTakePhotoClick = {
+                showImageSourceDialog = false
+                if (permissionsState.allPermissionsGranted) {
+                    tempImageUri = createImageUri(context)
+                    tempImageUri?.let {
+                        cameraLauncher.launch(it)
+                    }
+                } else {
+                    permissionsState.launchMultiplePermissionRequest()
+                }
+            },
+            onChooseFromGalleryClick = {
+                showImageSourceDialog = false
+                if (permissionsState.allPermissionsGranted) {
+                    galleryLauncher.launch("image/*")
+                } else {
+                    permissionsState.launchMultiplePermissionRequest()
+                }
+            }
+        )
     }
 
     Column(
@@ -102,6 +141,8 @@ fun JournalEntrySection(
             maxLines = 10
         )
 
+        ImageUploadCard(imageUri = imageUri, onBrowseClick = { showImageSourceDialog = true })
+
         // Character count and minimum requirement messaging
         val currentLength = state.currentJournalText.length
         val isMinLengthMet = currentLength >= MIN_JOURNAL_TEXT_LENGTH
@@ -117,16 +158,6 @@ fun JournalEntrySection(
                 color = if (isMinLengthMet) Color.White.copy(alpha = 0.7f) else Color(0xFF926247),
             )
         }
-
-        Spacer(modifier = Modifier.height(40.dp))
-
-        ImageUploadCard(imageUri = imageUri, onBrowseClick = {
-            if (permissionsState.allPermissionsGranted) {
-                galleryLauncher.launch("image/*")
-            } else {
-                permissionsState.launchMultiplePermissionRequest()
-            }
-        })
 
         // Spacer to push the button to the bottom
         Spacer(modifier = Modifier.weight(1f))
