@@ -12,10 +12,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import coil.compose.rememberAsyncImagePainter
 import com.example.aimoodjournal.R
 import com.example.aimoodjournal.domain.model.AIReport
 import com.example.aimoodjournal.domain.model.JournalEntry
@@ -295,6 +297,37 @@ fun AIReportSection(
                                         }
                                 )
                             }
+                        }
+                    }
+                }
+                if (journal.imagePath != null) {
+                    Spacer(modifier = Modifier.height(40.dp))
+                    Text(
+                        text = "Uploaded Image",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        colors = CardDefaults.cardColors().copy(
+                            containerColor = Color(0xFF2F1C19)
+                        )
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                painter = rememberAsyncImagePainter(state.selectedImageUri),
+                                contentDescription = "Selected Image",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentScale = ContentScale.Inside
+                            )
                         }
                     }
                 }

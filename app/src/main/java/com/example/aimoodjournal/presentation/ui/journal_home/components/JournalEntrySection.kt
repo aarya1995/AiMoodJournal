@@ -1,6 +1,11 @@
 package com.example.aimoodjournal.presentation.ui.journal_home.components
 
+import android.Manifest
+import android.content.Context
+import android.net.Uri
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
@@ -10,18 +15,33 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.example.aimoodjournal.R
 import com.example.aimoodjournal.domain.model.JournalEntry
 import com.example.aimoodjournal.presentation.ui.journal_home.JournalHomeState
 import com.example.aimoodjournal.presentation.ui.journal_home.JournalHomeViewModel
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import java.io.File
 
 private const val MIN_JOURNAL_TEXT_LENGTH = 40
 
+fun createImageUri(context: Context): Uri {
+    val imageFile = File.createTempFile("camera_photo_", ".jpg", context.cacheDir)
+    return FileProvider.getUriForFile(
+        context,
+        "${context.packageName}.provider",
+        imageFile
+    )
+}
+
+@OptIn(ExperimentalPermissionsApi::class)
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun JournalEntrySection(
@@ -30,6 +50,62 @@ fun JournalEntrySection(
     state: JournalHomeState,
     viewModel: JournalHomeViewModel,
 ) {
+    val context = LocalContext.current
+    var showImageSourceDialog by remember { mutableStateOf(false) }
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
+
+    val permissionsState = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.CAMERA,
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.READ_MEDIA_IMAGES
+            } else {
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            }
+        )
+    )
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.handleImageSelected(context, uri)
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success) {
+            tempImageUri?.let { viewModel.handleImageSelected(context, it) }
+        }
+    }
+
+    if (showImageSourceDialog) {
+        ImageSourceDialog(
+            onDismissRequest = { showImageSourceDialog = false },
+            onTakePhotoClick = {
+                showImageSourceDialog = false
+                if (permissionsState.allPermissionsGranted) {
+                    tempImageUri = createImageUri(context)
+                    tempImageUri?.let {
+                        cameraLauncher.launch(it)
+                    }
+                } else {
+                    permissionsState.launchMultiplePermissionRequest()
+                }
+            },
+            onChooseFromGalleryClick = {
+                showImageSourceDialog = false
+                if (permissionsState.allPermissionsGranted) {
+                    galleryLauncher.launch("image/*")
+                } else {
+                    permissionsState.launchMultiplePermissionRequest()
+                }
+            }
+        )
+    }
+
     Column(
         verticalArrangement = Arrangement.spacedBy(16.dp),
         modifier = Modifier
@@ -82,12 +158,21 @@ fun JournalEntrySection(
             )
         }
 
+        Spacer(modifier = Modifier.height(40.dp))
+
+        ImageUploadCard(
+            imageUri = state.selectedImageUri,
+            onBrowseClick = { showImageSourceDialog = true },
+        )
+
         // Spacer to push the button to the bottom
         Spacer(modifier = Modifier.weight(1f))
 
         // Analyze Button
         Button(
-            onClick = viewModel::saveJournalEntry,
+            onClick = {
+                viewModel.saveJournalEntry()
+            },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF926247)
