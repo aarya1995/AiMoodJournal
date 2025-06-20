@@ -10,5 +10,6 @@ data class Journal(
     val timestamp: Long,
     val journalText: String,
     val imagePath: String? = null,
-    val aiReport: String // JSON string containing the AI report card
+    val aiReport: String, // JSON string containing the AI report card
+    val llmPerfMetrics: String // JSON string containing the LLM performance metrics
 ) 

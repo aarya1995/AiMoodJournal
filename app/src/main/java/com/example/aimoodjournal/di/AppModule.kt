@@ -5,8 +5,10 @@ import androidx.room.Room
 import com.example.aimoodjournal.data.dao.JournalDatabase
 import com.example.aimoodjournal.data.dao.JournalDao
 import com.example.aimoodjournal.data.datastore.UserPreferences
+import com.example.aimoodjournal.data.llmchat.LlmChatHelperImpl
 import com.example.aimoodjournal.data.repository.JournalRepositoryImpl
 import com.example.aimoodjournal.data.repository.UserRepositoryImpl
+import com.example.aimoodjournal.domain.llmchat.LlmChatHelper
 import com.example.aimoodjournal.domain.repository.JournalRepository
 import com.example.aimoodjournal.domain.repository.UserRepository
 import dagger.Module
@@ -53,4 +55,10 @@ object AppModule {
     fun provideJournalRepository(
         journalDao: JournalDao
     ): JournalRepository = JournalRepositoryImpl(journalDao)
+
+    @Provides
+    @Singleton
+    fun provideLlmChatHelper(
+        @ApplicationContext context: Context
+    ): LlmChatHelper = LlmChatHelperImpl(context)
 } 

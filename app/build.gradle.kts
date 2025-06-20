@@ -78,6 +78,8 @@ dependencies {
 
     implementation("com.google.mediapipe:tasks-genai:0.10.24")
 
+    implementation("com.google.mediapipe:tasks-vision-image-generator:0.10.21")
+
     implementation("com.google.code.gson:gson:2.10.1")
 
     implementation("com.airbnb.android:lottie-compose:4.0.0")

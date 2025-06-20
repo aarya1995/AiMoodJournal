@@ -1,14 +1,18 @@
 package com.example.aimoodjournal.presentation.ui.journal_home
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.aimoodjournal.domain.llmchat.LlmChatHelper
+import com.example.aimoodjournal.domain.llmchat.LlmPerfMetrics
 import com.example.aimoodjournal.domain.model.AIReport
 import com.example.aimoodjournal.domain.model.JournalEntry
+import com.example.aimoodjournal.domain.model.LlmConfigOptions
 import com.example.aimoodjournal.domain.model.UserData
 import com.example.aimoodjournal.domain.repository.JournalRepository
 import com.example.aimoodjournal.domain.repository.UserRepository
@@ -29,9 +33,15 @@ import java.io.File
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
 import javax.inject.Inject
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
+
+/** CAUTION:
+ * Location where model was downloaded after the push_gemma.sh script run. If the script
+ * is modified then this path may need to be updated accordingly.
+ */
+const val MODEL_DOWNLOAD_PATH = "models/gemma-3n-E4B-it-int4.task"
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Immutable
@@ -50,6 +60,12 @@ data class JournalHomeState(
     val saveError: String? = null,
     val currentUserData: UserData? = null,
     val isEditingJournal: Boolean = false,
+    val images: List<Bitmap> = listOf(),
+    val llmConfigOptions: LlmConfigOptions = LlmConfigOptions(
+        modelPath = MODEL_DOWNLOAD_PATH,
+        topK = 64,
+        maxTokens = 5000,
+    ),
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -58,6 +74,7 @@ class JournalHomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val journalRepository: JournalRepository,
     private val userRepository: UserRepository,
+    private val llmChatHelper: LlmChatHelper,
 ) : ViewModel() {
     private val _state = MutableStateFlow(JournalHomeState())
     val state: StateFlow<JournalHomeState> = _state.asStateFlow()
@@ -77,6 +94,19 @@ class JournalHomeViewModel @Inject constructor(
         checkModelInstallation()
         loadJournalEntries()
         loadUserData()
+        initializeLlmChatHelper()
+    }
+
+    private fun initializeLlmChatHelper() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                val configOptions = _state.value.llmConfigOptions
+                llmChatHelper.initialize(
+                    context,
+                    llmConfigOptions = configOptions,
+                )
+            }
+        }
     }
 
     private fun loadUserData() {
@@ -177,33 +207,88 @@ class JournalHomeViewModel @Inject constructor(
                 val currentDate = _state.value.currentDate
                 val timestamp =
                     currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                val promptContext = getPromptContext(userData)
+                val input = promptContext + currentText
 
-                // Generate AI response in background thread
-                val aiReport = withContext(Dispatchers.IO) {
+                var aiReport: AIReport? = null
+                // collect metrics for LLM inference
+                var timeToFirstToken = 0f
+                var prefillSpeed = 0f
+                var decodeSpeed = 0f
+                var latencyMs = 0f
+
+                withContext(Dispatchers.IO) {
+                    var prefillTokens = llmChatHelper.getNumTokens(input)
+                    prefillTokens += _state.value.images.size * 257
+
+                    var firstRun = true
+                    var firstTokenTs = 0L
+                    var decodeTokens = 0
+                    val start = System.currentTimeMillis()
+                    val output = StringBuilder()
+
+                    // run inference with suspendCoroutine to make it blocking
                     try {
-                        val llmInference = createLLMInferenceTask()
-                        val promptContext = getPromptContext(userData)
-                        val response = llmInference.generateResponse(promptContext + currentText)
-                        Log.d("JournalHomeViewModel", "AI Response: $response")
+                        suspendCoroutine<Unit> { continuation ->
+                            llmChatHelper.runInference(
+                                input,
+                                images = _state.value.images,
+                                resultListener = { partialResult, done ->
+                                    output.append(partialResult)
+                                    val curTs = System.currentTimeMillis()
 
-                        // Parse the JSON response into AIReport
-                        parseAIResponse(response)
+                                    if (firstRun) {
+                                        firstTokenTs = System.currentTimeMillis()
+                                        timeToFirstToken = (firstTokenTs - start) / 1000f
+                                        prefillSpeed = prefillTokens / timeToFirstToken
+                                        firstRun = false
+                                    } else {
+                                        decodeTokens++
+                                    }
+
+                                    if (done) {
+                                        latencyMs = (curTs - start).toFloat() / 1000f
+                                        decodeSpeed =
+                                            decodeTokens / ((curTs - firstTokenTs) / 1000f)
+                                        if (decodeSpeed.isNaN()) {
+                                            decodeSpeed = 0f
+                                        }
+
+                                        // Parse the AI response when done
+                                        val finalResponse = output.toString()
+                                        aiReport = parseAIResponse(finalResponse)
+
+                                        // Resume the coroutine when inference is complete
+                                        continuation.resume(Unit)
+                                    }
+                                }
+                            )
+                        }
                     } catch (e: Exception) {
                         Log.e("JournalHomeViewModel", "Error generating AI response", e)
-                        null
+                        return@withContext
                     }
                 }
+
+                // create model perf metrics
+                val llmPerfMetrics = LlmPerfMetrics(
+                    timeToFirstToken = timeToFirstToken,
+                    prefillSpeed = prefillSpeed,
+                    decodeSpeed = decodeSpeed,
+                    latencyMs = latencyMs,
+                )
 
                 Log.d("JournalHomeViewModel", "AI Report: $aiReport")
                 // Create journal entry with AI report
                 if (aiReport == null) {
                     _state.update {
                         it.copy(
-                            saveError = "AI report failed to generate."
+                            saveError = "AI report failed to generate.",
                         )
                     }
                 }
 
+                // handle saving journal entry + ai report to db
                 // check if journal entry already exists for today and we are performing an update/upsert
                 val existingJournal = _state.value.journalEntries[currentDate]
                 val existingJournalId = existingJournal?.id
@@ -213,7 +298,8 @@ class JournalHomeViewModel @Inject constructor(
                     timestamp = timestamp,
                     journalText = currentText,
                     imagePath = null, // TODO: Add image support later
-                    aiReport = aiReport
+                    aiReport = aiReport,
+                    llmPerfMetrics = llmPerfMetrics,
                 )
 
                 // Save to database

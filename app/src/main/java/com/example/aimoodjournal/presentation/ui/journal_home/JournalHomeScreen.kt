@@ -584,7 +584,7 @@ fun AIReportSection(
                             verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
                             journal.aiReport.journalHighlights.map { highlight ->
-                                Row (
+                                Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
@@ -746,7 +746,7 @@ fun JournalEntrySection(
         // Character count and minimum requirement messaging
         val currentLength = state.currentJournalText.length
         val isMinLengthMet = currentLength >= MIN_JOURNAL_TEXT_LENGTH
-        
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -769,9 +769,9 @@ fun JournalEntrySection(
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF926247)
             ),
-            enabled = state.currentJournalText.trim().isNotEmpty() && 
-                     state.currentJournalText.length >= MIN_JOURNAL_TEXT_LENGTH && 
-                     !state.isSaving
+            enabled = state.currentJournalText.trim().isNotEmpty() &&
+                    state.currentJournalText.length >= MIN_JOURNAL_TEXT_LENGTH &&
+                    !state.isSaving
         ) {
             if (state.isSaving) {
                 CircularProgressIndicator(
