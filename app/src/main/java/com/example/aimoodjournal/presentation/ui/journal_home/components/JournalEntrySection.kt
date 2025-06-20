@@ -142,10 +142,6 @@ fun JournalEntrySection(
             maxLines = 10
         )
 
-        ImageUploadCard(
-            imageUri = state.selectedImageUri,
-            onBrowseClick = { showImageSourceDialog = true })
-
         // Character count and minimum requirement messaging
         val currentLength = state.currentJournalText.length
         val isMinLengthMet = currentLength >= MIN_JOURNAL_TEXT_LENGTH
@@ -161,6 +157,13 @@ fun JournalEntrySection(
                 color = if (isMinLengthMet) Color.White.copy(alpha = 0.7f) else Color(0xFF926247),
             )
         }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        ImageUploadCard(
+            imageUri = state.selectedImageUri,
+            onBrowseClick = { showImageSourceDialog = true },
+        )
 
         // Spacer to push the button to the bottom
         Spacer(modifier = Modifier.weight(1f))

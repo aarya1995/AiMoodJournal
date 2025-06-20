@@ -54,7 +54,7 @@ fun ImageUploadCard(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
-                    text = "Browse your file to upload!",
+                    text = "Browse your optional image to upload!",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color.White,
                     fontSize = 18.sp,
