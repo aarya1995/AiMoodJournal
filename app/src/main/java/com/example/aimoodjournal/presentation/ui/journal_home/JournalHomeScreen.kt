@@ -41,6 +41,7 @@ import com.example.aimoodjournal.domain.model.JournalEntry
 import com.example.aimoodjournal.presentation.ui.shared.CurvedTopCard
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import androidx.compose.ui.platform.LocalView
+import com.example.aimoodjournal.common.roundTo
 
 private const val JOURNAL_TEXT_PREVIEW_LENGTH = 150
 private const val MIN_JOURNAL_TEXT_LENGTH = 40
@@ -668,6 +669,128 @@ fun AIReportSection(
                                         .clickable {
                                             isJournalTextExpanded = !isJournalTextExpanded
                                         }
+                                )
+                            }
+                        }
+                    }
+                }
+                if (journal.llmPerfMetrics != null) {
+                    Spacer(modifier = Modifier.height(40.dp))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.stopwatch),
+                            contentDescription = "stopwatch",
+                            tint = Color(0xFFA8A29E),
+                            modifier = Modifier.size(30.dp)
+                        )
+                        Text(
+                            text = "Stats on ${journal.llmPerfMetrics.accelerator}",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                            color = Color.White,
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth(),
+                        colors = CardDefaults.cardColors().copy(
+                            containerColor = Color(0xFF2F1C19)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            // time to first token
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "1st token",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    text = "${journal.llmPerfMetrics.timeToFirstToken.roundTo(2)}",
+                                    style = MaterialTheme.typography.titleLarge,
+                                )
+                                Text(
+                                    text = "sec",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        color = Color.LightGray,
+                                    ),
+                                )
+                            }
+
+                            // prefill speed
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Prefill speed",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    text = "${journal.llmPerfMetrics.prefillSpeed.roundTo(2)}",
+                                    style = MaterialTheme.typography.titleLarge,
+                                )
+                                Text(
+                                    text = "tokens/s",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        color = Color.LightGray,
+                                    ),
+                                )
+                            }
+
+                            // decode speed
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Decode speed",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    text = "${journal.llmPerfMetrics.decodeSpeed.roundTo(2)}",
+                                    style = MaterialTheme.typography.titleLarge,
+                                )
+                                Text(
+                                    text = "tokens/s",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        color = Color.LightGray,
+                                    ),
+                                )
+                            }
+
+                            // latency
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxHeight(),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Text(
+                                    text = "Latency",
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    text = "${journal.llmPerfMetrics.latencySeconds.roundTo(2)}",
+                                    style = MaterialTheme.typography.titleLarge,
+                                )
+                                Text(
+                                    text = "sec",
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        color = Color.LightGray,
+                                    ),
                                 )
                             }
                         }

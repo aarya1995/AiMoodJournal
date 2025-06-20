@@ -215,7 +215,7 @@ class JournalHomeViewModel @Inject constructor(
                 var timeToFirstToken = 0f
                 var prefillSpeed = 0f
                 var decodeSpeed = 0f
-                var latencyMs = 0f
+                var latencySecs = 0f
 
                 withContext(Dispatchers.IO) {
                     var prefillTokens = llmChatHelper.getNumTokens(input)
@@ -247,7 +247,7 @@ class JournalHomeViewModel @Inject constructor(
                                     }
 
                                     if (done) {
-                                        latencyMs = (curTs - start).toFloat() / 1000f
+                                        latencySecs = (curTs - start).toFloat() / 1000f
                                         decodeSpeed =
                                             decodeTokens / ((curTs - firstTokenTs) / 1000f)
                                         if (decodeSpeed.isNaN()) {
@@ -271,11 +271,13 @@ class JournalHomeViewModel @Inject constructor(
                 }
 
                 // create model perf metrics
+                val accelerator = _state.value.llmConfigOptions.accelerator
                 val llmPerfMetrics = LlmPerfMetrics(
                     timeToFirstToken = timeToFirstToken,
                     prefillSpeed = prefillSpeed,
                     decodeSpeed = decodeSpeed,
-                    latencyMs = latencyMs,
+                    latencySeconds = latencySecs,
+                    accelerator = accelerator.name,
                 )
 
                 Log.d("JournalHomeViewModel", "AI Report: $aiReport")
