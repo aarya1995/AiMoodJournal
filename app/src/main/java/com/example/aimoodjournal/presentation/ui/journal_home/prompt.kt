@@ -33,7 +33,12 @@ fun getPromptContext(userData: UserData): String {
         Avoid sounding too clinical in the analysis, instead assume you a friendly and helpful role. Use the second person voice wherever possible (e.g. "You").
         Avoid stating obvious things in the output like the user's bio data. Only use that as context and to aid in the analysis.
         
+        There may also be an optional image included alongside the journal entry. Only use that image to aid in the analysis if you can extrapolate any sentiment from it.
+        If it looks like noise, or doesn't make sense in the context of the journal entry then disregard. Otherwise, use it to aid in creating
+        the analysis. In the journalSummary field, include one comment about the uploaded image, if one is present and the analysis yielded relevant results.
+        
         Please perform the analysis and return the json string as the only output, based on the user's entry which will follow after
         this sentence.
+        
     """.trimIndent()
 }

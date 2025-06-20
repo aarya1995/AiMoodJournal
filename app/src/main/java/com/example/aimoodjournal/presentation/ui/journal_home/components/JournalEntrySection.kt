@@ -51,9 +51,8 @@ fun JournalEntrySection(
     viewModel: JournalHomeViewModel,
 ) {
     val context = LocalContext.current
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
-    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
     var showImageSourceDialog by remember { mutableStateOf(false) }
+    var tempImageUri by remember { mutableStateOf<Uri?>(null) }
 
     val permissionsState = rememberMultiplePermissionsState(
         permissions = listOf(
@@ -69,14 +68,16 @@ fun JournalEntrySection(
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        imageUri = uri
+        if (uri != null) {
+            viewModel.handleImageSelected(context, uri)
+        }
     }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { success: Boolean ->
         if (success) {
-            imageUri = tempImageUri
+            tempImageUri?.let { viewModel.handleImageSelected(context, it) }
         }
     }
 
@@ -141,7 +142,9 @@ fun JournalEntrySection(
             maxLines = 10
         )
 
-        ImageUploadCard(imageUri = imageUri, onBrowseClick = { showImageSourceDialog = true })
+        ImageUploadCard(
+            imageUri = state.selectedImageUri,
+            onBrowseClick = { showImageSourceDialog = true })
 
         // Character count and minimum requirement messaging
         val currentLength = state.currentJournalText.length
@@ -165,7 +168,7 @@ fun JournalEntrySection(
         // Analyze Button
         Button(
             onClick = {
-//                viewModel.saveJournalEntry(imageUri)
+                viewModel.saveJournalEntry()
             },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(

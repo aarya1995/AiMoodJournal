@@ -2,6 +2,8 @@ package com.example.aimoodjournal.presentation.ui.journal_home
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.net.Uri
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -31,9 +33,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.UUID
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -62,11 +67,13 @@ data class JournalHomeState(
     val currentUserData: UserData? = null,
     val isEditingJournal: Boolean = false,
     val images: List<Bitmap> = listOf(),
+    val selectedImagePath: String? = null,
+    val selectedImageUri: Uri? = null,
     val llmConfigOptions: LlmConfigOptions = LlmConfigOptions(
         modelPath = MODEL_DOWNLOAD_PATH,
         topK = 64,
         maxTokens = 5000,
-    ),
+    )
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -217,6 +224,51 @@ class JournalHomeViewModel @Inject constructor(
         }
     }
 
+    fun handleImageSelected(context: Context, uri: Uri?) {
+        if (uri == null) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val newFile = saveImageToInternalStorage(context, uri)
+            val imagePath = newFile.absolutePath
+            val imageUri = Uri.fromFile(newFile)
+            val bitmap = loadBitmapFromUri(context, imageUri)
+
+            _state.update {
+                it.copy(
+                    selectedImagePath = imagePath,
+                    selectedImageUri = imageUri,
+                    images = listOf(bitmap)
+                )
+            }
+        }
+    }
+
+    private fun saveImageToInternalStorage(context: Context, uri: Uri): File {
+        val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
+        val file = File(context.filesDir, "journal_image_${UUID.randomUUID()}.jpg")
+        inputStream.use { input ->
+            FileOutputStream(file).use { output ->
+                input?.copyTo(output)
+            }
+        }
+        return file
+    }
+
+    private fun loadBitmapFromUri(context: Context, uri: Uri): Bitmap {
+        val original = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            val source = ImageDecoder.createSource(context.contentResolver, uri)
+            ImageDecoder.decodeBitmap(source)
+        } else {
+            @Suppress("DEPRECATION")
+            android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+        }
+        // Always convert to ARGB_8888
+        return if (original.config != Bitmap.Config.ARGB_8888) {
+            original.copy(Bitmap.Config.ARGB_8888, true)
+        } else {
+            original
+        }
+    }
+
     fun saveJournalEntry() {
         val currentText = _state.value.currentJournalText.trim()
         val userData = _state.value.currentUserData
@@ -319,11 +371,12 @@ class JournalHomeViewModel @Inject constructor(
                 val existingJournal = _state.value.journalEntries[currentDate]
                 val existingJournalId = existingJournal?.id
 
+                val imagePath = _state.value.selectedImagePath
                 val journal = JournalEntry(
                     id = existingJournalId,
                     timestamp = timestamp,
                     journalText = currentText,
-                    imagePath = null, // TODO: Add image support later
+                    imagePath = imagePath,
                     aiReport = aiReport,
                     llmPerfMetrics = llmPerfMetrics,
                 )
@@ -387,14 +440,34 @@ class JournalHomeViewModel @Inject constructor(
     }
 
     private fun updateCurrentJournalText() {
-        val currentDate = _state.value.currentDate
-        val existingJournal = _state.value.journalEntries[currentDate]
+        viewModelScope.launch {
+            val currentDate = _state.value.currentDate
+            val existingJournal = _state.value.journalEntries[currentDate]
 
-        _state.update {
-            it.copy(
-                currentJournalText = existingJournal?.journalText ?: "",
-                isEditingJournal = false,
-            )
+            var imagePath: String? = null
+            var imageUri: Uri? = null
+            var bitmap: Bitmap? = null
+
+            if (existingJournal?.imagePath != null) {
+                imagePath = existingJournal.imagePath
+                val imageFile = File(imagePath)
+                if (imageFile.exists()) {
+                    imageUri = Uri.fromFile(imageFile)
+                    bitmap = withContext(Dispatchers.IO) {
+                        loadBitmapFromUri(context, imageUri)
+                    }
+                }
+            }
+
+            _state.update {
+                it.copy(
+                    currentJournalText = existingJournal?.journalText ?: "",
+                    isEditingJournal = false,
+                    selectedImagePath = imagePath,
+                    selectedImageUri = imageUri,
+                    images = if (bitmap != null) listOf(bitmap) else emptyList()
+                )
+            }
         }
     }
 
