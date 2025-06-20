@@ -38,6 +38,8 @@ import androidx.compose.ui.zIndex
 import com.example.aimoodjournal.R
 import com.example.aimoodjournal.domain.model.AIReport
 import com.example.aimoodjournal.domain.model.JournalEntry
+import com.example.aimoodjournal.domain.model.LlmConfigOptions
+import com.example.aimoodjournal.domain.model.Accelerator
 import com.example.aimoodjournal.presentation.ui.shared.CurvedTopCard
 import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import androidx.compose.ui.platform.LocalView
@@ -62,6 +64,7 @@ fun JournalHomeScreen(
 
     var showDatePicker by remember { mutableStateOf(false) }
     var isProgrammaticNavigation by remember { mutableStateOf(false) }
+    var showLlmConfigDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Track previous saving state for haptic feedback
@@ -194,8 +197,25 @@ fun JournalHomeScreen(
                                 Modifier
                             }
                         ),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 0.dp, end = 16.dp),
+                        horizontalArrangement = Arrangement.End,
+                    ) {
+                        IconButton(
+                            onClick = { showLlmConfigDialog = true }
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.llm_ic),
+                                contentDescription = "ai settings icon",
+                                modifier = Modifier.size(30.dp),
+                                tint = Color(0xFFB1865E)
+                            )
+                        }
+                    }
                     // Date Picker Header
                     DatePickerHeader(
                         currentDate = state.currentDate,
@@ -228,6 +248,18 @@ fun JournalHomeScreen(
                             showDatePicker = false
                         },
                         initialDate = state.currentDate
+                    )
+                }
+
+                // LLM Config Dialog
+                if (showLlmConfigDialog) {
+                    LlmConfigDialog(
+                        onDismissRequest = { showLlmConfigDialog = false },
+                        onConfigSaved = { topK, topP, temperature, accelerator ->
+                            viewModel.updateLlmConfig(topK, topP, temperature, accelerator)
+                            showLlmConfigDialog = false
+                        },
+                        currentConfig = state.llmConfigOptions
                     )
                 }
 
@@ -924,4 +956,165 @@ fun JournalEntrySection(
             }
         }
     }
+}
+
+@RequiresApi(Build.VERSION_CODES.O)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LlmConfigDialog(
+    onDismissRequest: () -> Unit,
+    onConfigSaved: (Int, Float, Float, Accelerator) -> Unit,
+    currentConfig: LlmConfigOptions
+) {
+    var topKText by remember { mutableStateOf(currentConfig.topK.toString()) }
+    var topPText by remember { mutableStateOf(currentConfig.topP.toString()) }
+    var temperatureText by remember { mutableStateOf(currentConfig.temperature.toString()) }
+    var selectedAccelerator by remember { mutableStateOf(currentConfig.accelerator) }
+
+    var topKError by remember { mutableStateOf<String?>(null) }
+    var topPError by remember { mutableStateOf<String?>(null) }
+    var temperatureError by remember { mutableStateOf<String?>(null) }
+
+    val accelerators = listOf(Accelerator.CPU, Accelerator.GPU)
+
+    fun validateInputs(): Boolean {
+        var isValid = true
+
+        // Validate topK
+        val topK = topKText.toIntOrNull()
+        if (topK == null || topK < 0 || topK > 100) {
+            topKError = "Must be 0-100"
+            isValid = false
+        } else {
+            topKError = null
+        }
+
+        // Validate topP
+        val topP = topPText.toFloatOrNull()
+        if (topP == null || topP < 0f || topP > 1f) {
+            topPError = "Must be 0.00-1.00"
+            isValid = false
+        } else {
+            topPError = null
+        }
+
+        // Validate temperature
+        val temperature = temperatureText.toFloatOrNull()
+        if (temperature == null || temperature < 0f || temperature > 2f) {
+            temperatureError = "Must be 0.00-2.00"
+            isValid = false
+        } else {
+            temperatureError = null
+        }
+
+        return isValid
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        title = {
+            Text(
+                text = "LLM Configuration",
+                style = MaterialTheme.typography.headlineSmall,
+                color = Color.White
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Max Tokens
+                Text(
+                    text = "Max Tokens: ${currentConfig.maxTokens}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.7f),
+                )
+                // TopK Input
+                OutlinedTextField(
+                    value = topKText,
+                    onValueChange = { topKText = it },
+                    label = { Text("Top K (0-100)", color = Color.White.copy(alpha = 0.7f)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                    isError = topKError != null,
+                    supportingText = topKError?.let { { Text(it, color = Color.Red) } }
+                )
+
+                // TopP Input
+                OutlinedTextField(
+                    value = topPText,
+                    onValueChange = { topPText = it },
+                    label = { Text("Top P (0.00-1.00)", color = Color.White.copy(alpha = 0.7f)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                    isError = topPError != null,
+                    supportingText = topPError?.let { { Text(it, color = Color.Red) } }
+                )
+
+                // Temperature Input
+                OutlinedTextField(
+                    value = temperatureText,
+                    onValueChange = { temperatureText = it },
+                    label = {
+                        Text(
+                            "Temperature (0.00-2.00)",
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    },
+                    keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal),
+                    isError = temperatureError != null,
+                    supportingText = temperatureError?.let { { Text(it, color = Color.Red) } }
+                )
+
+                // Accelerator Selection
+                Column {
+                    Text(
+                        text = "Accelerator",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        accelerators.forEach { accelerator ->
+                            FilterChip(
+                                onClick = { selectedAccelerator = accelerator },
+                                label = { Text(accelerator.toString()) },
+                                selected = selectedAccelerator == accelerator,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = Color(0xFF926247),
+                                    selectedLabelColor = Color.White,
+                                    containerColor = Color.White.copy(alpha = 0.1f),
+                                    labelColor = Color.White
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (validateInputs()) {
+                        onConfigSaved(
+                            topKText.toInt(),
+                            topPText.toFloat(),
+                            temperatureText.toFloat(),
+                            selectedAccelerator
+                        )
+                    }
+                }
+            ) {
+                Text("Save", color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text("Cancel", color = Color.White)
+            }
+        },
+        containerColor = Color(0xFF2F1C19),
+        titleContentColor = Color.White,
+        textContentColor = Color.White
+    )
 } 
