@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.aimoodjournal.domain.llmchat.LlmChatHelper
 import com.example.aimoodjournal.domain.llmchat.LlmPerfMetrics
 import com.example.aimoodjournal.domain.model.AIReport
+import com.example.aimoodjournal.domain.model.Accelerator
 import com.example.aimoodjournal.domain.model.JournalEntry
 import com.example.aimoodjournal.domain.model.LlmConfigOptions
 import com.example.aimoodjournal.domain.model.UserData
@@ -191,6 +192,29 @@ class JournalHomeViewModel @Inject constructor(
 
     fun editJournal() {
         _state.update { it.copy(isEditingJournal = true) }
+    }
+
+    fun updateLlmConfig(
+        topK: Int,
+        topP: Float,
+        temperature: Float,
+        accelerator: Accelerator
+    ) {
+        val newConfig = _state.value.llmConfigOptions.copy(
+            topK = topK,
+            topP = topP,
+            temperature = temperature,
+            accelerator = accelerator
+        )
+
+        _state.update { it.copy(llmConfigOptions = newConfig) }
+
+        // Reinitialize the LLM chat helper with new config
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                llmChatHelper.initialize(context, newConfig)
+            }
+        }
     }
 
     fun saveJournalEntry() {
