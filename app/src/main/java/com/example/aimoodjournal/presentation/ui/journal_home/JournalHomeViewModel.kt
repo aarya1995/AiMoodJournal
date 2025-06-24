@@ -2,7 +2,6 @@ package com.example.aimoodjournal.presentation.ui.journal_home
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.util.Log
@@ -10,44 +9,28 @@ import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.aimoodjournal.domain.llmchat.LlmChatHelper
-import com.example.aimoodjournal.domain.llmchat.LlmPerfMetrics
-import com.example.aimoodjournal.domain.model.AIReport
+import com.example.aimoodjournal.common.Constants.MODEL_DOWNLOAD_PATH
 import com.example.aimoodjournal.domain.model.Accelerator
 import com.example.aimoodjournal.domain.model.JournalEntry
 import com.example.aimoodjournal.domain.model.LlmConfigOptions
 import com.example.aimoodjournal.domain.model.UserData
+import com.example.aimoodjournal.domain.repository.ImageRepository
 import com.example.aimoodjournal.domain.repository.JournalRepository
+import com.example.aimoodjournal.domain.repository.LlmRepository
 import com.example.aimoodjournal.domain.repository.UserRepository
-import com.google.mediapipe.tasks.genai.llminference.LlmInference
-import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-import java.io.InputStream
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.UUID
 import javax.inject.Inject
-import kotlin.coroutines.resume
-import kotlin.coroutines.suspendCoroutine
-
-/** CAUTION:
- * Location where model was downloaded after the push_gemma.sh script run. If the script
- * is modified then this path may need to be updated accordingly.
- */
-const val MODEL_DOWNLOAD_PATH = "models/gemma-3n-E4B-it-int4.task"
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Immutable
@@ -73,7 +56,7 @@ data class JournalHomeState(
         modelPath = MODEL_DOWNLOAD_PATH,
         topK = 64,
         maxTokens = 5000,
-    )
+    ),
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -82,7 +65,8 @@ class JournalHomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val journalRepository: JournalRepository,
     private val userRepository: UserRepository,
-    private val llmChatHelper: LlmChatHelper,
+    private val llmRepository: LlmRepository,
+    private val imageRepository: ImageRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(JournalHomeState())
     val state: StateFlow<JournalHomeState> = _state.asStateFlow()
@@ -102,17 +86,17 @@ class JournalHomeViewModel @Inject constructor(
         checkModelInstallation()
         loadJournalEntries()
         loadUserData()
-        initializeLlmChatHelper()
+        initializeLlmRepository()
     }
 
-    private fun initializeLlmChatHelper() {
+    private fun initializeLlmRepository() {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
+            try {
                 val configOptions = _state.value.llmConfigOptions
-                llmChatHelper.initialize(
-                    context,
-                    llmConfigOptions = configOptions,
-                )
+                llmRepository.initialize(context, configOptions)
+            } catch (e: Exception) {
+                Log.e("JournalHomeViewModel", "Failed to initialize LLM repository", e)
+                _state.update { it.copy(error = "Failed to initialize AI model") }
             }
         }
     }
@@ -216,56 +200,40 @@ class JournalHomeViewModel @Inject constructor(
 
         _state.update { it.copy(llmConfigOptions = newConfig) }
 
-        // Reinitialize the LLM chat helper with new config
+        // Update the LLM repository with new config
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                llmChatHelper.initialize(context, newConfig)
+            try {
+                llmRepository.updateConfig(context, newConfig)
+            } catch (e: Exception) {
+                Log.e("JournalHomeViewModel", "Failed to update LLM config", e)
+                _state.update { it.copy(error = "Failed to update AI model configuration") }
             }
         }
     }
 
     fun handleImageSelected(context: Context, uri: Uri?) {
         if (uri == null) return
-        viewModelScope.launch(Dispatchers.IO) {
-            val newFile = saveImageToInternalStorage(context, uri)
-            val imagePath = newFile.absolutePath
-            val imageUri = Uri.fromFile(newFile)
-            val bitmap = loadBitmapFromUri(context, imageUri)
+        viewModelScope.launch {
+            try {
+                val imagePath = imageRepository.saveImageToInternalStorage(context, uri)
+                val imageUri = Uri.fromFile(File(imagePath))
+                val bitmap = imageRepository.loadBitmapFromUri(context, imageUri)
 
-            _state.update {
-                it.copy(
-                    selectedImagePath = imagePath,
-                    selectedImageUri = imageUri,
-                    images = listOf(bitmap)
-                )
+                if (bitmap != null) {
+                    _state.update {
+                        it.copy(
+                            selectedImagePath = imagePath,
+                            selectedImageUri = imageUri,
+                            images = listOf(bitmap)
+                        )
+                    }
+                } else {
+                    _state.update { it.copy(error = "Failed to load selected image") }
+                }
+            } catch (e: Exception) {
+                Log.e("JournalHomeViewModel", "Error handling image selection", e)
+                _state.update { it.copy(error = "Failed to process selected image") }
             }
-        }
-    }
-
-    private fun saveImageToInternalStorage(context: Context, uri: Uri): File {
-        val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-        val file = File(context.filesDir, "journal_image_${UUID.randomUUID()}.jpg")
-        inputStream.use { input ->
-            FileOutputStream(file).use { output ->
-                input?.copyTo(output)
-            }
-        }
-        return file
-    }
-
-    private fun loadBitmapFromUri(context: Context, uri: Uri): Bitmap {
-        val original = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            val source = ImageDecoder.createSource(context.contentResolver, uri)
-            ImageDecoder.decodeBitmap(source)
-        } else {
-            @Suppress("DEPRECATION")
-            android.provider.MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
-        }
-        // Always convert to ARGB_8888
-        return if (original.config != Bitmap.Config.ARGB_8888) {
-            original.copy(Bitmap.Config.ARGB_8888, true)
-        } else {
-            original
         }
     }
 
@@ -283,91 +251,16 @@ class JournalHomeViewModel @Inject constructor(
                 val currentDate = _state.value.currentDate
                 val timestamp =
                     currentDate.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-                val promptContext = getPromptContext(userData)
-                val input = promptContext + currentText
 
-                var aiReport: AIReport? = null
-                // collect metrics for LLM inference
-                var timeToFirstToken = 0f
-                var prefillSpeed = 0f
-                var decodeSpeed = 0f
-                var latencySecs = 0f
-
-                withContext(Dispatchers.IO) {
-                    var prefillTokens = llmChatHelper.getNumTokens(input)
-                    prefillTokens += _state.value.images.size * 257
-
-                    var firstRun = true
-                    var firstTokenTs = 0L
-                    var decodeTokens = 0
-                    val start = System.currentTimeMillis()
-                    val output = StringBuilder()
-
-                    // run inference with suspendCoroutine to make it blocking
-                    try {
-                        suspendCoroutine<Unit> { continuation ->
-                            llmChatHelper.runInference(
-                                input,
-                                images = _state.value.images,
-                                resultListener = { partialResult, done ->
-                                    output.append(partialResult)
-                                    val curTs = System.currentTimeMillis()
-
-                                    if (firstRun) {
-                                        firstTokenTs = System.currentTimeMillis()
-                                        timeToFirstToken = (firstTokenTs - start) / 1000f
-                                        prefillSpeed = prefillTokens / timeToFirstToken
-                                        firstRun = false
-                                    } else {
-                                        decodeTokens++
-                                    }
-
-                                    if (done) {
-                                        latencySecs = (curTs - start).toFloat() / 1000f
-                                        decodeSpeed =
-                                            decodeTokens / ((curTs - firstTokenTs) / 1000f)
-                                        if (decodeSpeed.isNaN()) {
-                                            decodeSpeed = 0f
-                                        }
-
-                                        // Parse the AI response when done
-                                        val finalResponse = output.toString()
-                                        aiReport = parseAIResponse(finalResponse)
-
-                                        // Resume the coroutine when inference is complete
-                                        continuation.resume(Unit)
-                                    }
-                                }
-                            )
-                        }
-                    } catch (e: Exception) {
-                        Log.e("JournalHomeViewModel", "Error generating AI response", e)
-                        return@withContext
-                    }
-                }
-
-                // create model perf metrics
-                val accelerator = _state.value.llmConfigOptions.accelerator
-                val llmPerfMetrics = LlmPerfMetrics(
-                    timeToFirstToken = timeToFirstToken,
-                    prefillSpeed = prefillSpeed,
-                    decodeSpeed = decodeSpeed,
-                    latencySeconds = latencySecs,
-                    accelerator = accelerator.name,
+                // Generate AI report using the repository
+                val (aiReport, llmPerfMetrics) = llmRepository.generateAIReport(
+                    journalText = currentText,
+                    images = _state.value.images,
+                    userData = userData,
+                    llmConfigOptions = _state.value.llmConfigOptions
                 )
 
-                Log.d("JournalHomeViewModel", "AI Report: $aiReport")
                 // Create journal entry with AI report
-                if (aiReport == null) {
-                    _state.update {
-                        it.copy(
-                            saveError = "AI report failed to generate.",
-                        )
-                    }
-                }
-
-                // handle saving journal entry + ai report to db
-                // check if journal entry already exists for today and we are performing an update/upsert
                 val existingJournal = _state.value.journalEntries[currentDate]
                 val existingJournalId = existingJournal?.id
 
@@ -395,6 +288,7 @@ class JournalHomeViewModel @Inject constructor(
                     )
                 }
             } catch (e: Exception) {
+                Log.e("JournalHomeViewModel", "Error saving journal entry", e)
                 _state.update {
                     it.copy(
                         isSaving = false,
@@ -404,39 +298,6 @@ class JournalHomeViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    private fun parseAIResponse(response: String): AIReport? {
-        return try {
-            // Clean the response - remove any extra text before or after the JSON
-            val jsonStart = response.indexOf('{')
-            val jsonEnd = response.lastIndexOf('}') + 1
-            if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                val jsonString = response.substring(jsonStart, jsonEnd)
-                Gson().fromJson(jsonString, AIReport::class.java)
-            } else {
-                null
-            }
-        } catch (e: JsonSyntaxException) {
-            Log.e("JournalHomeViewModel", "Error parsing AI response JSON", e)
-            null
-        }
-    }
-
-    private fun createLLMInferenceTask(): LlmInference {
-        val taskOptions = LlmInference.LlmInferenceOptions.builder()
-            .setModelPath(
-                File(
-                    context.filesDir,
-                    "models/gemma-3n-E4B-it-int4.task"
-                ).absolutePath
-            )
-            .setMaxTopK(64)
-            .setMaxTokens(5000)
-            .build()
-
-        // Create and return an instance of the LLM Inference task
-        return LlmInference.createFromOptions(context, taskOptions)
     }
 
     private fun updateCurrentJournalText() {
@@ -453,9 +314,7 @@ class JournalHomeViewModel @Inject constructor(
                 val imageFile = File(imagePath)
                 if (imageFile.exists()) {
                     imageUri = Uri.fromFile(imageFile)
-                    bitmap = withContext(Dispatchers.IO) {
-                        loadBitmapFromUri(context, imageUri)
-                    }
+                    bitmap = imageRepository.loadBitmapFromUri(context, imageUri)
                 }
             }
 
@@ -522,10 +381,7 @@ class JournalHomeViewModel @Inject constructor(
             try {
                 _state.update { it.copy(isLoading = true, error = null) }
 
-                // Check if model exists in app's files directory
-                val modelDir = File(context.filesDir, "models")
-                val modelFile = File(modelDir, "gemma-3n-E4B-it-int4.task")
-                val isInstalled = modelFile.exists() && modelFile.length() > 0
+                val isInstalled = llmRepository.isModelInstalled(context)
 
                 _state.update {
                     it.copy(

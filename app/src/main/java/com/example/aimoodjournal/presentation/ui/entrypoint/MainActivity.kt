@@ -27,7 +27,6 @@ import androidx.navigation.compose.rememberNavController
 import com.example.aimoodjournal.presentation.navigation.NavDestinations
 import com.example.aimoodjournal.presentation.ui.theme.AiMoodJournalTheme
 import com.example.aimoodjournal.presentation.ui.journal_home.JournalHomeScreen
-import com.example.aimoodjournal.presentation.ui.journal_history.JournalHistoryScreen
 import com.example.aimoodjournal.presentation.ui.nux.disclaimer.DisclaimerScreen
 import com.example.aimoodjournal.presentation.ui.nux.biometrics.UserBiometricsScreen
 import com.example.aimoodjournal.presentation.ui.nux.setup.SetupScreen
@@ -93,16 +92,8 @@ fun AppNavigation(
                     LoadingDots(modifier = Modifier.align(Alignment.Center))
                 }
             } else if (state.hasCompletedNux == true) {
-                JournalHomeScreen(
-                    onNavigateToHistory = {
-                        navController.navigate(NavDestinations.JournalHistory.route)
-                    }
-                )
+                JournalHomeScreen()
             }
-        }
-
-        composable(NavDestinations.JournalHistory.route) {
-            JournalHistoryScreen()
         }
 
         // NUX Flow

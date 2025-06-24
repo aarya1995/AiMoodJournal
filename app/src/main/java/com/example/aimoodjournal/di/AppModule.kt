@@ -6,10 +6,14 @@ import com.example.aimoodjournal.data.dao.JournalDatabase
 import com.example.aimoodjournal.data.dao.JournalDao
 import com.example.aimoodjournal.data.datastore.UserPreferences
 import com.example.aimoodjournal.data.llmchat.LlmChatHelperImpl
+import com.example.aimoodjournal.data.repository.ImageRepositoryImpl
 import com.example.aimoodjournal.data.repository.JournalRepositoryImpl
+import com.example.aimoodjournal.data.repository.LlmRepositoryImpl
 import com.example.aimoodjournal.data.repository.UserRepositoryImpl
 import com.example.aimoodjournal.domain.llmchat.LlmChatHelper
+import com.example.aimoodjournal.domain.repository.ImageRepository
 import com.example.aimoodjournal.domain.repository.JournalRepository
+import com.example.aimoodjournal.domain.repository.LlmRepository
 import com.example.aimoodjournal.domain.repository.UserRepository
 import dagger.Module
 import dagger.Provides
@@ -61,4 +65,14 @@ object AppModule {
     fun provideLlmChatHelper(
         @ApplicationContext context: Context
     ): LlmChatHelper = LlmChatHelperImpl(context)
+
+    @Provides
+    @Singleton
+    fun provideLlmRepository(
+        llmChatHelper: LlmChatHelper
+    ): LlmRepository = LlmRepositoryImpl(llmChatHelper)
+
+    @Provides
+    @Singleton
+    fun provideImageRepository(): ImageRepository = ImageRepositoryImpl()
 } 
