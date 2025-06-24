@@ -1,4 +1,4 @@
-package com.example.aimoodjournal.presentation.ui.journal_home
+package com.example.aimoodjournal.data.llmchat
 
 import com.example.aimoodjournal.domain.model.UserData
 

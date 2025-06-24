@@ -35,7 +35,6 @@ import com.example.aimoodjournal.presentation.ui.journal_home.components.LlmConf
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun JournalHomeScreen(
-    onNavigateToHistory: () -> Unit,
     viewModel: JournalHomeViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()

@@ -57,14 +57,6 @@ class LlmChatHelperImpl @Inject constructor(
         }
     }
 
-    override fun resetSession(llmConfigOptions: LlmConfigOptions) {
-        TODO("Not yet implemented")
-    }
-
-    override fun cleanupSession() {
-        TODO("Not yet implemented")
-    }
-
     override fun runInference(input: String, resultListener: ResultListener, images: List<Bitmap>) {
         val inferenceSession =
             llmInferenceSession ?: return // todo: throw exception if session is not initialized

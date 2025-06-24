@@ -3,8 +3,7 @@ package com.example.aimoodjournal.presentation.navigation
 sealed class NavDestinations(val route: String) {
     // Main Flow
     data object JournalHome : NavDestinations("journal_home")
-    data object JournalHistory : NavDestinations("journal_history")
-    
+
     // NUX Flow
     data object Welcome : NavDestinations("welcome")
     data object UserDetails : NavDestinations("user_details")
